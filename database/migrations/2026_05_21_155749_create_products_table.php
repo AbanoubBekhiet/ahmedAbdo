@@ -19,7 +19,6 @@ return new class extends Migration
             $table->decimal("unit_price",10,2);
             $table->integer("quantity")->default(0);
             $table->enum("unit",["شريط","كرتونة","علبة"])->default("كرتونة");
-            $table->string("image_path")->nullable();
             $table->boolean("status")->default(true);
             $table->timestamps();
         });

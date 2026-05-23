@@ -7,14 +7,12 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\SignUpRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use App\Traits\ApiResponseTrait;
 use App\Models\User;
 use App\Models\Profile;
 use Illuminate\Support\Facades\DB;
 class AuthController extends Controller
 {
 
-    use ApiResponseTrait;
     
     public function register(SignUpRequest $request)
     {
