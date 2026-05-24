@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrdersController;
+use App\Http\Controllers\SettingsController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -62,4 +63,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrdersController::class, 'createOrder']);
     Route::get('/orders/{order}', [OrdersController::class, 'getSingleOrder']);
     Route::put('/orders/{order}', [OrdersController::class, 'updateOrderStatus']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/settings/update', [SettingsController::class, 'updateSettings'])->middleware('role:admin');
+    Route::get('/settings', [SettingsController::class, 'getSettings']);
 });

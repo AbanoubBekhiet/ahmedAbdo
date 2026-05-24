@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
-            $table->string("name");
-            $table->integer("value")->default(0);
+            $table->integer("min_order_products_count")->default(1);
+            $table->integer("min_order_total_price")->default(1000);
             $table->timestamps();
         });
     }
