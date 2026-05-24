@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductsController;
+use App\Http\Controllers\TargetController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -32,3 +33,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/products/{product}', [ProductsController::class, 'destroy'])->middleware('role:admin');
 });
 
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/targets', [TargetController::class, 'index']);
+    Route::post('/targets', [TargetController::class, 'store'])->middleware('role:admin');
+    Route::get('/targets/{target}', [TargetController::class, 'show']);
+    Route::put('/targets/{target}', [TargetController::class, 'update'])->middleware('role:admin'); 
+    Route::delete('/targets/{target}', [TargetController::class, 'destroy'])->middleware('role:admin');
+});
