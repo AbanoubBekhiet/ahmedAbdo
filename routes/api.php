@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\OrdersController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -51,4 +52,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cart/{cart}', [CartController::class, 'updateCartItem']);
     Route::delete('/cart/{cart}', [CartController::class, 'deleteCartItem']);
     Route::delete('/cart', [CartController::class, 'emptyCart']);
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/orders/all', [OrdersController::class, 'getAllOrders'])->middleware('role:admin');
+    Route::get('/orders/my-orders', [OrdersController::class, 'getMyOrders']);
+    Route::post('/orders', [OrdersController::class, 'createOrder']);
+    Route::get('/orders/{order}', [OrdersController::class, 'getSingleOrder']);
+    Route::put('/orders/{order}', [OrdersController::class, 'updateOrderStatus']);
 });
