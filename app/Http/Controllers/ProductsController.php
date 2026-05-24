@@ -119,4 +119,22 @@ class ProductsController extends Controller
         );
     }
 
+    public function changeProductStatus($id){
+        $product = Product::find($id);
+        if(!$product){
+            return $this->errorResponse(
+                message:"المنتج غير موجود",
+                statusCode:404
+            );
+        }
+        $product->update([
+            'status'=> $product->status == 0 ? 1 : 0
+        ]);
+        return $this->successResponse(
+            data:$product,
+            message:"تم تحديث حالة المنتج بنجاح",
+            statusCode:200
+        );
+    }
+
 }
