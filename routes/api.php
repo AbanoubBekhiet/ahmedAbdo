@@ -9,6 +9,7 @@ use App\Http\Controllers\TargetController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\UserController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -68,4 +69,15 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::put('/settings/update', [SettingsController::class, 'updateSettings'])->middleware('role:admin');
     Route::get('/settings', [SettingsController::class, 'getSettings']);
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [UserController::class, 'myProfile']);
+    Route::put('/profile/update', [UserController::class, 'updateProfile']);
+    Route::get('/users/customers', [UserController::class, 'showCustomers'])->middleware('role:admin');
+    Route::get('/users/delivery-boys', [UserController::class, 'showDeliveryBoys'])->middleware('role:admin');
+    Route::post('/users/delivery-boy', [UserController::class, 'storeDeliveryBoy'])->middleware('role:admin');
+    Route::put('/users/delivery-boy/{delivery_boy}', [UserController::class, 'updateDeliveryBoy'])->middleware('role:admin');
+    Route::delete('/users/delivery-boy/{delivery_boy}', [UserController::class, 'deleteDeliveryBoy'])->middleware('role:admin');
 });
