@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\SignUpRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\Wallet;
 use App\Models\Profile;
 use Illuminate\Support\Facades\DB;
 class AuthController extends Controller
@@ -35,13 +36,19 @@ class AuthController extends Controller
                 'address' => $validatedData['address']
             ]);
 
+            $wallet=Wallet::create([
+                'user_id' => $user->id,
+                'balance' => 0,
+            ]);
+
             $token = $user->createToken('authToken')->plainTextToken;
 
-            return compact('user', 'profile', 'token');
+            return compact('user', 'profile', 'wallet', 'token');
         });
 
         $user = $result['user'];
         $profile = $result['profile'];
+        $wallet = $result['wallet'];
         $token = $result['token'];
         
         return $this->successResponse(
@@ -53,6 +60,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'phone_number' => $user->phone_number,
                     'role' => $user->role, 
+                    'balance' => $wallet->balance,
                     'latitude' => $profile->latitude,
                     'longitude' => $profile->longitude,
                     'shop_name' => $profile->shop_name,

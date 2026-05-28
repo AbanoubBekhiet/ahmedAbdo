@@ -10,6 +10,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WalletController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -80,4 +81,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/delivery-boy', [UserController::class, 'storeDeliveryBoy'])->middleware('role:admin');
     Route::put('/users/delivery-boy/{delivery_boy}', [UserController::class, 'updateDeliveryBoy'])->middleware('role:admin');
     Route::delete('/users/delivery-boy/{delivery_boy}', [UserController::class, 'deleteDeliveryBoy'])->middleware('role:admin');
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/wallet', [WalletController::class, 'myWallet'])->middleware('role:admin,customer');
+    Route::post('/wallet/add/{userId}', [WalletController::class, 'addToWallet'])->middleware('role:admin,customer');
+    Route::post('/wallet/withdraw/{userId}', [WalletController::class, 'withdrawFromWallet'])->middleware('role:admin,customer');
 });
