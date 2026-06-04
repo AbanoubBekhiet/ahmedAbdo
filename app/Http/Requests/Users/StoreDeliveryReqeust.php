@@ -24,9 +24,15 @@ class StoreDeliveryReqeust extends FormRequest
     {
         return [
             'name'=>'required|string|max:255',
-            'phone_number'=>'required|string|max:255|unique:users,phone_number',
-            'password'=>'required|string|max:255',
-        ];
+    'phone_number' => [
+        'required',
+        'string',
+        'max:20',
+        'unique:users,phone_number',
+        'regex:/^(010|011|012|015)[0-9]{8}$/'
+    ],
+    'password' => 'required|string|max:255',
+];
     }
 
     public function messages(): array

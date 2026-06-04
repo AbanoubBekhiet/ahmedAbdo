@@ -27,7 +27,13 @@ class UpdateDeliveryReqeust extends FormRequest
 
         return [
             'name'=>'required|string|max:255',
-            'phone_number'=>'required|string|max:255|unique:users,phone_number,'.$userId,
+            'phone_number'=>[
+                'required',
+                'string',
+                'max:20',
+                'unique:users,phone_number,'.$userId,
+                'regex:/^(010|011|012|015)[0-9]{8}$/'
+            ],
             'password'=>'nullable|string|max:255',
         ];
     }

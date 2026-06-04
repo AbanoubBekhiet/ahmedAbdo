@@ -24,7 +24,12 @@ class SignUpRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:20|unique:users,phone_number',
+            'phone_number' => [
+                'required',
+                'string',
+                'max:20',
+                'unique:users,phone_number',
+                'regex:/^(010|011|012|015)[0-9]{8}$/'],
             'password' => 'required|string|max:255',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
@@ -39,6 +44,7 @@ class SignUpRequest extends FormRequest
         return [
             'name.required' => 'يرجى إدخال الاسم.',
             'phone_number.required' => 'يرجى إدخال رقم الهاتف.',
+            'phone_number.regex' => 'يرجى إدخال رقم هاتف صحيح يبدأ بـ 010 أو 011 أو 012 أو 015.',
             'phone_number.unique' => 'رقم الهاتف مسجل بالفعل.',
             'password.required' => 'يرجى إدخال كلمة المرور.',
             'latitude.required' => 'يرجى إدخال خط العرض.',

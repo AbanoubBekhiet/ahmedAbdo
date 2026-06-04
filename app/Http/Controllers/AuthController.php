@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 class AuthController extends Controller
 {
 
-    
     public function register(SignUpRequest $request)
     {
         $validatedData = $request->validated();
