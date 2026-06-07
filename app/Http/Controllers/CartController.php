@@ -6,13 +6,14 @@ use Illuminate\Http\Request;
 use App\Http\Requests\Carts\AddToCartRequest;
 use App\Http\Requests\Carts\UpdateCartItemRequest;
 use App\Models\Cart;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 class CartController extends Controller
 {
     public function myCart()
     {
         $user = Auth::user();
-        $cartItems = $user->carts;
+        $cartItems = $user->carts()->with('product.media')->get();
         return $this->successResponse([
             'status' => true,
             'message' => 'تم جلب سلة المشتريات بنجاح',
@@ -108,5 +109,15 @@ class CartController extends Controller
             'message' => 'تم حذف جميع المنتجات من سلة المشتريات بنجاح',
         ]);
 
+    }
+
+    public function usersCart(){
+        $users=User::with('carts.product.media')->where('role','customer')->get();
+        
+        return $this->successResponse([
+            'status' => true,
+            'message' => 'تم جلب سلة المشتريات بنجاح',
+            'data' => $users,
+        ]);
     }
 }
