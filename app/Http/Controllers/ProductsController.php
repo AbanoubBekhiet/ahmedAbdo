@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Http\Requests\Products\StoreRequest;
 use App\Http\Requests\Products\UpdateRequest;
 use App\Models\Product;
+use App\Imports\ProductsImport;
+use Maatwebsite\Excel\Facades\Excel;
 class ProductsController extends Controller
 {
     public function index(Request $request){
@@ -135,6 +137,51 @@ class ProductsController extends Controller
             message:"تم تحديث حالة المنتج بنجاح",
             statusCode:200
         );
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ], [
+            'file.required' => 'ملف الاكسيل مطلوب',
+            'file.file' => 'يجب رفع ملف صالح',
+            'file.mimes' => 'يجب ان يكون الملف من نوع xlsx, xls, csv',
+            'file.max' => 'حجم الملف يجب ان لا يتجاوز 10 ميجا',
+        ]);
+
+        try {
+            $import = new ProductsImport;
+            Excel::import($import, $request->file('file'));
+
+            $errors = $import->getErrors();
+            $importedCount = $import->getImportedCount();
+
+            if (!empty($errors)) {
+                return $this->successResponse(
+                    data: [
+                        'imported_count' => $importedCount,
+                        'errors' => $errors
+                    ],
+                    message: "تم استيراد $importedCount من المنتجات مع وجود بعض الأخطاء",
+                    statusCode: 200
+                );
+            }
+
+            return $this->successResponse(
+                data: [
+                    'imported_count' => $importedCount,
+                ],
+                message: "تم استيراد جميع المنتجات بنجاح",
+                statusCode: 200
+            );
+
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                message: "حدث خطأ أثناء استيراد الملف: " . $e->getMessage(),
+                statusCode: 500
+            );
+        }
     }
 
 }
