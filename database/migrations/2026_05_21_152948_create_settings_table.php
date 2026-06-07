@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->integer("min_order_products_count")->default(1);
             $table->integer("min_order_total_price")->default(1000);
+            $table->string("phone_number")->default("01000000000");
             $table->timestamps();
         });
     }

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Setting;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -31,5 +32,17 @@ class DatabaseSeeder extends Seeder
             'role' => 'customer'
         ]);
 
+        User::create([
+            'name' => 'delivery',
+            'password' => Hash::make('password'),
+            'phone_number' => '01283324042',
+            'role' => 'delivery'
+        ]);
+
+        Setting::create([
+            "min_order_products_count" => 1,
+            "min_order_total_price" => 1000,
+            "phone_number" => "01000000000",
+        ]);
     }
 }

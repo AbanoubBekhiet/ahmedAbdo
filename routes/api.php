@@ -11,6 +11,7 @@ use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\StatisticsController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -88,4 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet', [WalletController::class, 'myWallet'])->middleware('role:admin,customer');
     Route::post('/wallet/add/{userId}', [WalletController::class, 'addToWallet'])->middleware('role:admin,customer');
     Route::post('/wallet/withdraw/{userId}', [WalletController::class, 'withdrawFromWallet'])->middleware('role:admin,customer');
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
 });
