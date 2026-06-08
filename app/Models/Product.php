@@ -32,4 +32,9 @@ class Product extends Model implements HasMedia
                     ->withPivot('number_of_units', 'unit_price', 'total_price')
                     ->withTimestamps();
     }
+
+    public function offers()
+    {
+        return $this->hasMany(Offer::class)->where('end_date', '>', now());
+    }
 }

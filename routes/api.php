@@ -12,6 +12,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\OffersController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -95,4 +96,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/offers', [OffersController::class, 'index']);
+    Route::post('/offers', [OffersController::class, 'store'])->middleware('role:admin');
+    Route::delete('/offers/{offer}', [OffersController::class, 'destroy'])->middleware('role:admin');
+    Route::get('/offers/{offer}', [OffersController::class, 'show']);
 });
