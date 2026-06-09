@@ -114,6 +114,21 @@ class OrdersController extends Controller
         $order->update([
             'status'=>$request->status,
         ]);
+
+
+        $statusMessages = [
+            'ملغي'        => 'عذراً! تم إلغاء طلبك.',
+            'تم التوصيل'    => 'تم توصيل طلبك بنجاح 🚚',
+            'جاري التجهيز' => 'جاري تجهيز طلبك 🎉'
+        ];
+
+        $defaultMessage = 'تم تحديث حالة طلبك.';
+        $messageText = $statusMessages[$request->status] ?? $defaultMessage;
+        app(NotificationController::class)->sendOrderStatusNotification(new Request([
+            'profile_id'  => $order->user_id,
+            'order_id' => $order->id,
+            'status'   => $messageText
+        ]));
         return $this->successResponse([
             'status_code'=>200, 
             'message'=>'تم تحديث الطلب بنجاح',

@@ -25,12 +25,6 @@ class DatabaseSeeder extends Seeder
             'phone_number' => '01283324043',
             'role' => 'admin'
         ]);
-        User::create([
-            'name' => 'customer',
-            'password' => Hash::make('password'),
-            'phone_number' => '01555126141',
-            'role' => 'customer'
-        ]);
 
         User::create([
             'name' => 'delivery',
