@@ -11,7 +11,8 @@ class Profile extends Model
         'latitude',
         'longitude',
         'shop_name',
-        'address'
+        'address',
+        'fcm_token',
     ];
     
     public function user(){

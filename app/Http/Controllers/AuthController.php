@@ -31,7 +31,8 @@ class AuthController extends Controller
                 'user_id' => $user->id,
                 'latitude' => $validatedData['latitude'],
                 'longitude' => $validatedData['longitude'],
-                'shop_name' => $validatedData['shop_name'],
+                'shop_name' => $validatedData['shop_name'], 
+                'fcm_token' => $validatedData['fcm_token'],
                 'address' => $validatedData['address']
             ]);
 
@@ -59,6 +60,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'phone_number' => $user->phone_number,
                     'role' => $user->role, 
+                    'fcm_token' => $profile->fcm_token,
                     'balance' => $wallet->balance,
                     'latitude' => $profile->latitude,
                     'longitude' => $profile->longitude,

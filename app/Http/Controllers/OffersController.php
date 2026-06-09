@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Offer;
 use App\Models\Product;
 use App\Http\Requests\Offers\StoreOfferRequest;
-
+use App\Http\Controllers\NotificationController;
+use Illuminate\Http\Request;
 class OffersController extends Controller
 {
     public function index()
@@ -26,6 +27,11 @@ class OffersController extends Controller
             'price_after_discount' => $request->price_after_discount,
             'product_id' => $request->product_id,
         ]);
+        app(NotificationController::class)->sendGlobalOfferNotification(new Request([
+            'title'    => $offer->title,
+            'body'     => $offer->description,
+            'offer_id' => $offer->id
+        ]));
         return $this->successResponse([
             'status_code' => 201,
             'message' => 'تم اضافة العرض بنجاح',

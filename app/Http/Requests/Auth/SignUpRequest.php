@@ -34,7 +34,8 @@ class SignUpRequest extends FormRequest
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
             'shop_name' => 'required|string|max:255',
-            'address' => 'required|string|max:255'
+            'address' => 'required|string|max:255',
+            'fcm_token' => 'nullable|string',
          ];
     }
 

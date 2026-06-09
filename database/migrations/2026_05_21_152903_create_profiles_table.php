@@ -17,6 +17,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
             $table->string('shop_name');
+            $table->string('fcm_token')->nullable();
             $table->string('address');
             $table->decimal('total_orders_price_in_current_month', 10, 2)->default(0);
             $table->timestamps();
