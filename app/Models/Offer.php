@@ -15,6 +15,6 @@ class Offer extends Model
     ];
     public function product()
     {
-        return $this->belongsTo(Product::class)->where('end_date','>=',date('Y-m-d H:i:s'));
+        return $this->belongsTo(Product::class);
     }
 }

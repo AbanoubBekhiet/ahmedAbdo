@@ -27,7 +27,7 @@ class StoreOfferRequest extends FormRequest
         return [
             'title' => 'required|string',
             'description' => 'required|string',
-            'end_date' => 'required|date_format:Y-m-d H:i:s',
+            'end_date' => 'required|date_format:Y-m-d H:i:s|after:now',
             'price_after_discount' => 'required|numeric',
             'product_id' => 'required|exists:products,id',
         ];
@@ -55,6 +55,7 @@ class StoreOfferRequest extends FormRequest
             'description.string' => 'وصف العرض يجب أن يكون نصًا',
             'end_date.required' => 'تاريخ انتهاء العرض مطلوب',
             'end_date.date_format' => 'تاريخ انتهاء العرض يجب أن يكون بصيغة Y-m-d H:i:s',
+            'end_date.after' => 'تاريخ انتهاء العرض يجب أن يكون بعد الوقت الحالي',
             'price_after_discount.required' => 'السعر بعد الخصم مطلوب',
             'price_after_discount.numeric' => 'السعر بعد الخصم يجب أن يكون رقمًا',
             'product_id.required' => 'المنتج مطلوب',

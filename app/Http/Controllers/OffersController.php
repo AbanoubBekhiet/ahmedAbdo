@@ -10,9 +10,7 @@ class OffersController extends Controller
 {
     public function index()
     {
-        $offers = Offer::with('product')->whereHas('product', function ($query) {
-            $query->where('end_date', '>=', date('Y-m-d H:i:s'));
-        })->get();
+        $offers = Offer::with('product')->where('end_date', '>=', date('Y-m-d H:i:s'))->get();
         return $this->successResponse([
             'status_code' => 200,
             'message' => 'تم جلب العروض بنجاح',
