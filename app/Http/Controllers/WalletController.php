@@ -11,11 +11,11 @@ use App\Models\Wallet;
 class WalletController extends Controller
 {
     public function myWallet(){
-        $user=User::where('id',Auth::user()->id)->first();
+        $wallet=Auth::user()->wallet;
         return $this->successResponse(
             [
                 "message"=>"تم استرجاع محفظة المستخدم بنجاح",
-                "userWallet"=>$user->wallet,
+                "userWallet"=>$wallet,
             ]
             ,200);
     }

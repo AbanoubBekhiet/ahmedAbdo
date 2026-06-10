@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Cart;
+use App\Models\Target;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 class OrdersController extends Controller
@@ -118,8 +119,8 @@ class OrdersController extends Controller
 
         $statusMessages = [
             'ملغي'        => 'عذراً! تم إلغاء طلبك.',
-            'تم التوصيل'    => 'تم توصيل طلبك بنجاح 🚚',
-            'جاري التجهيز' => 'جاري تجهيز طلبك 🎉'
+            'تم التوصيل'    => 'تم توصيل طلبك بنجاح ',
+            'جاري التجهيز' => 'جاري تجهيز طلبك '
         ];
 
         $defaultMessage = 'تم تحديث حالة طلبك.';
@@ -129,6 +130,30 @@ class OrdersController extends Controller
             'order_id' => $order->id,
             'status'   => $messageText
         ]));
+
+
+
+        if($order->status=='تم التوصيل'){
+            $targets=Target::orderBy('points','desc')->get();
+            foreach($targets as $target){
+                if($target->goal <= $order->total_price){
+                $order->user->wallet->update([
+                    'balance'=>($order->user->wallet->balance)+($target->points),
+                ]);
+                app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                    'profile_id'  => $order->user_id,
+                    'order_id' => $order->id,
+                    'status'   => 'تهانينا! لقد ربحت '.$target->points.' نقطة'
+                ]));
+                break;
+            }
+        }
+    }
+
+
+
+
+        
         return $this->successResponse([
             'status_code'=>200, 
             'message'=>'تم تحديث الطلب بنجاح',
