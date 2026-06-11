@@ -7,6 +7,7 @@ use App\Http\Requests\Carts\AddToCartRequest;
 use App\Http\Requests\Carts\UpdateCartItemRequest;
 use App\Models\Cart;
 use App\Models\User;
+use App\Models\Product;
 use Illuminate\Support\Facades\Auth;
 class CartController extends Controller
 {
@@ -24,7 +25,19 @@ class CartController extends Controller
     public function addToCart(AddToCartRequest $request){
         $request->validated();
         $user_id=Auth::id();
-
+        $product_from_products=Product::find($request->product_id);
+        if(!$product_from_products){
+            return $this->errorResponse(
+                'المنتج غير موجود',
+                404
+            );
+        }
+        if($product_from_products->max_quantity<$request->number_of_units){
+            return $this->errorResponse(
+                'لا يمكن اضافه اكثر من '.$product_from_products->max_quantity.' من هذا المنتج',
+                400
+            );
+        }
         $product=Cart::where('product_id', $request->product_id)->where('user_id', $user_id)->first();
         if($product){
             return $this->errorResponse(
@@ -32,7 +45,7 @@ class CartController extends Controller
                 400
             );
         }
-
+        
         $totalProductPrice=$request->unit_price*$request->number_of_units;
         $cartItem=Cart::create([
             'user_id' => $user_id,
@@ -52,7 +65,19 @@ class CartController extends Controller
     public function updateCartItem(UpdateCartItemRequest $request,$id){
         $request->validated();
         $user_id=Auth::id();
-
+        $product_from_products=Product::find($request->product_id);
+        if(!$product_from_products){
+            return $this->errorResponse(
+                'المنتج غير موجود',
+                404
+            );
+        }
+        if($product_from_products->max_quantity<$request->number_of_units){
+            return $this->errorResponse(
+                'لا يمكن اضافه اكثر من '.$product_from_products->max_quantity.' من هذا المنتج',
+                400
+            );
+        }
         $product=Cart::where('id',$id)->where('user_id',$user_id)->first();
         if(!$product){
             return $this->errorResponse(

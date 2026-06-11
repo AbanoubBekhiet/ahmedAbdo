@@ -15,6 +15,8 @@ class OrdersController extends Controller
         $user_id = auth()->id();
         $cartItems = Cart::where('user_id', $user_id)->get();
         $settings=Setting::first();
+        $wallet=auth()->user()->wallet;
+
         $totalPrice = $cartItems->sum('total_price');
 
         if($cartItems->isEmpty()){
@@ -35,6 +37,14 @@ class OrdersController extends Controller
                 'عدد المنتجات أقل من المطلوب',
                 404
             );
+        }
+        $discount_amount=0;
+        if($wallet->balance >0){
+            $totalPrice =$totalPrice-$wallet->balance;
+            $discount_amount=$wallet->balance;
+            $wallet->update([
+                'balance'=>0,
+            ]);
         }
 
 
@@ -164,15 +174,21 @@ class OrdersController extends Controller
             }
             
         }
-        $order->user->profile->update([
-            'total_orders_price_in_current_month'=>($order->user->profile->total_orders_price_in_current_month+$order->total_price),
-        ]);
-    }
+            $order->user->profile->update([
+                'total_orders_price_in_current_month'=>($order->user->profile->total_orders_price_in_current_month+$order->total_price),
+            ]);
+        }
+    
 
-
-
-
-        
+        if($order->status=='ملغي'&&$order->discount_amount>0){
+            $wallet=Wallet::where('user_id',$order->user_id)->first();
+            $wallet->update([
+                'balance'=>($wallet->balance)+($order->discount_amount),
+            ]);
+            $order->update([
+                'discount_amount'=>0,
+            ]);
+        }
         return $this->successResponse([
             'status_code'=>200, 
             'message'=>'تم تحديث الطلب بنجاح',
