@@ -13,6 +13,7 @@ class Profile extends Model
         'shop_name',
         'address',
         'fcm_token',
+        'total_orders_price_in_current_month',
     ];
     
     public function user(){

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Cart;
 use App\Models\Target;
+use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 class OrdersController extends Controller
@@ -13,19 +14,33 @@ class OrdersController extends Controller
     public function createOrder(){
         $user_id = auth()->id();
         $cartItems = Cart::where('user_id', $user_id)->get();
-        
+        $settings=Setting::first();
+        $totalPrice = $cartItems->sum('total_price');
+
         if($cartItems->isEmpty()){
             return $this->errorResponse(
                 'سلة المشتريات فارغة',
                 404
             );
         }
+        if($totalPrice<$settings->min_order_total_price){
+            return $this->errorResponse(
+                'سعر الطلب أقل من المطلوب',
+                404
+            );
+        }
+
+        if($cartItems->count()<$settings->min_order_products_count){
+            return $this->errorResponse(
+                'عدد المنتجات أقل من المطلوب',
+                404
+            );
+        }
+
 
         try {
-            $order = DB::transaction(function () use ($user_id, $cartItems) {
+            $order = DB::transaction(function () use ($user_id, $cartItems,$totalPrice) {
                 
-                $totalPrice = $cartItems->sum('total_price');
-
                 $order = Order::create([
                     'user_id' => $user_id,
                     'total_price' => $totalPrice,
@@ -147,7 +162,11 @@ class OrdersController extends Controller
                 ]));
                 break;
             }
+            
         }
+        $order->user->profile->update([
+            'total_orders_price_in_current_month'=>($order->user->profile->total_orders_price_in_current_month+$order->total_price),
+        ]);
     }
 
 
