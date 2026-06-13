@@ -46,7 +46,15 @@ class User extends Authenticatable
     public function cart(){
         return $this->carts();
     }
+    public function targets()
+    {
+        return $this->belongsToMany(Target::class, 'user_targets', 'user_id', 'target_id');
+    }
 
+    public function monthlyTargets()
+    {
+        return $this->belongsToMany(MonthlyTarget::class, 'user_monthly_targets', 'user_id', 'monthly_target_id');
+    }
 
     public function isAdmin(): bool
     {

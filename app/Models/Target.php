@@ -10,5 +10,9 @@ class Target extends Model
         'goal',
         'points'
     ];
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_targets', 'target_id', 'user_id');
+    }
 
 }
