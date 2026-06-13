@@ -14,6 +14,8 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\OffersController;
 use App\Http\Controllers\MonthlyTargetController;
+use App\Http\Controllers\UserTargetController;
+use App\Http\Controllers\UserMonthlyTargetController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -59,6 +61,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/monthly-targets/{monthly_target}', [MonthlyTargetController::class, 'show']);
     Route::put('/monthly-targets/{monthly_target}', [MonthlyTargetController::class, 'update'])->middleware('role:admin'); 
     Route::delete('/monthly-targets/{monthly_target}', [MonthlyTargetController::class, 'destroy'])->middleware('role:admin');
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user-targets', [UserTargetController::class, 'index']);
+    Route::post('/user-targets', [UserTargetController::class, 'store'])->middleware('role:admin');
+    Route::get('/user-targets/{user_target}', [UserTargetController::class, 'show']);
+    Route::put('/user-targets/{user_target}', [UserTargetController::class, 'update'])->middleware('role:admin'); 
+    Route::delete('/user-targets/{user_target}', [UserTargetController::class, 'destroy'])->middleware('role:admin');
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user-monthly-targets', [UserMonthlyTargetController::class, 'index']);
+    Route::post('/user-monthly-targets', [UserMonthlyTargetController::class, 'store'])->middleware('role:admin');
+    Route::get('/user-monthly-targets/{user_monthly_target}', [UserMonthlyTargetController::class, 'show']);
+    Route::put('/user-monthly-targets/{user_monthly_target}', [UserMonthlyTargetController::class, 'update'])->middleware('role:admin'); 
+    Route::delete('/user-monthly-targets/{user_monthly_target}', [UserMonthlyTargetController::class, 'destroy'])->middleware('role:admin');
 });
 
 
