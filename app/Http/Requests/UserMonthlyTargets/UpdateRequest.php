@@ -14,8 +14,8 @@ class UpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => 'sometimes|required|exists:users,id',
-            'monthly_target_id' => 'sometimes|required|exists:monthly_targets,id',
+            'user_id' => 'required|exists:users,id',
+            'monthly_target_id' => 'required|exists:monthly_targets,id',
         ];
     }
 
