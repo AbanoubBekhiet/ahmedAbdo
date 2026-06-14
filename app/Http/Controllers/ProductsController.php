@@ -15,35 +15,24 @@ class ProductsController extends Controller
         $categoryId = $request->input('category_id');
         $status = $request->input('status');
 
+        $query = Product::query()->with('media');
+
         if ($request->filled('search')) {
-            $searchQuery = Product::search($search);
-
-            if ($request->filled('category_id')) {
-                $searchQuery->where('category_id', (int) $categoryId);
-            }
-
-            if ($request->has('status') && $request->input('status') !== null && $request->input('status') !== '') {
-                $searchQuery->where('status', (int) $status);
-            }
-
-            $keys = $searchQuery->keys();
-
-            $products = Product::with('media')
-                ->whereIn('id', $keys)
-                ->cursorPaginate(30);
-        } else {
-            $query = Product::query()->with('media');
-
-            if ($request->filled('category_id')) {
-                $query->where('category_id', $categoryId);
-            }
-
-            if ($request->has('status') && $request->input('status') !== null && $request->input('status') !== '') {
-                $query->where('status', $status);
-            }
-
-            $products = $query->cursorPaginate(30);
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
         }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($request->has('status') && $request->input('status') !== null && $request->input('status') !== '') {
+            $query->where('status', $status);
+        }
+
+        $products = $query->cursorPaginate(30);
 
         return $this->successResponse(
             data:$products,
