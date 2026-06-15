@@ -14,7 +14,7 @@ class UserController extends Controller
 {
     public function myProfile(){
         $user_id=Auth::id();
-        $user=User::with('profile')->where('id',$user_id)->first();
+        $user=User::with('profile','userTargets','userMonthlyTargets')->where('id',$user_id)->first();
         if(!$user){
             return $this->errorResponse([
                 "message"=>"المستخدم غير موجود",

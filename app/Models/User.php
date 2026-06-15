@@ -56,6 +56,16 @@ class User extends Authenticatable
         return $this->belongsToMany(MonthlyTarget::class, 'user_monthly_targets', 'user_id', 'monthly_target_id');
     }
 
+    public function userTargets()
+    {
+        return $this->hasMany(UserTarget::class);
+    }
+
+    public function userMonthlyTargets()
+    {
+        return $this->hasMany(UserMonthlyTarget::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
