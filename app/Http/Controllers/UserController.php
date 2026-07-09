@@ -14,13 +14,17 @@ class UserController extends Controller
 {
     public function myProfile(){
         $user_id=Auth::id();
-        $user=User::with('profile','userTargets','userMonthlyTargets')->where('id',$user_id)->first();
+        $user=User::with('profile')->where('id',$user_id)->first();
         if(!$user){
             return $this->errorResponse([
                 "message"=>"المستخدم غير موجود",
                 "statusCode"=>404
             ]);
         }
+        $userTargets=$user->userTargets()->with('target')->get();
+        $userMonthlyTargets=$user->userMonthlyTargets()->with('monthlyTarget')->get();
+        $user->userTargets=$userTargets;
+        $user->userMonthlyTargets=$userMonthlyTargets;
         return $this->successResponse([
             "message"=>"تم جلب بيانات المستخدم بنجاح",
             "data"=>$user,

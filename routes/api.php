@@ -91,7 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/orders/all', [OrdersController::class, 'getAllOrders'])->middleware('role:admin');
+    Route::get('/orders/all', [OrdersController::class, 'getAllOrders'])->middleware('role:admin,delivery');
     Route::get('/orders/my-orders', [OrdersController::class, 'getMyOrders']);
     Route::post('/orders', [OrdersController::class, 'createOrder']);
     Route::get('/orders/{order}', [OrdersController::class, 'getSingleOrder']);

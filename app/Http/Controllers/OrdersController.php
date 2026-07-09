@@ -11,12 +11,14 @@ use App\Models\UserTarget;
 use App\Models\MonthlyTarget;
 use App\Models\UserMonthlyTarget;
 use App\Models\Wallet;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 class OrdersController extends Controller
 {
     public function createOrder(){
         $user_id = auth()->id();
+        $admin=User::where('role','admin')->first();
         $cartItems = Cart::where('user_id', $user_id)->get();
         $settings=Setting::first();
         $wallet=auth()->user()->wallet;
@@ -61,10 +63,10 @@ class OrdersController extends Controller
                 ]);
             }
         }
-
+               
 
         try {
-            $order = DB::transaction(function () use ($user_id, $cartItems, $totalPrice, $discount_amount) {
+            $order = DB::transaction(function () use ($user_id, $cartItems, $totalPrice, $discount_amount,$admin) {
                 
                 $order = Order::create([
                     'user_id' => $user_id,
@@ -80,6 +82,11 @@ class OrdersController extends Controller
                     ]);
                 }
 
+                 app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                    'profile_id'  => $admin?->profile?->id||"1",
+                    'order_id' => $order->id,
+                    'status'   => "طلب جديد من " . auth()->user()->name
+                ]));
                 Cart::where('user_id', $user_id)->delete();
 
                 return $order;
