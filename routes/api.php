@@ -107,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [UserController::class, 'myProfile']);
     Route::put('/profile/update', [UserController::class, 'updateProfile']);
+    Route::put('/profile/fcm-token', [UserController::class, 'updateFcmToken']);
     Route::get('/users/customers', [UserController::class, 'showCustomers'])->middleware('role:admin');
     Route::get('/users/delivery-boys', [UserController::class, 'showDeliveryBoys'])->middleware('role:admin');
     Route::post('/users/delivery-boy', [UserController::class, 'storeDeliveryBoy'])->middleware('role:admin');

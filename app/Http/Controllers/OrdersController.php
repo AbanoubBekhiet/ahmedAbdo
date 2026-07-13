@@ -83,7 +83,7 @@ class OrdersController extends Controller
                 }
 
                  app(NotificationController::class)->sendOrderStatusNotification(new Request([
-                    'profile_id'  => $admin?->profile?->id||"1",
+                    'profile_id'  => $admin?->profile?->id,
                     'order_id' => $order->id,
                     'status'   => "طلب جديد من " . auth()->user()->name
                 ]));

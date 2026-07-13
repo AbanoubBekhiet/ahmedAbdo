@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\Users\UpdateProfileReqeust;
 use App\Http\Requests\Users\StoreDeliveryReqeust;
 use App\Http\Requests\Users\UpdateDeliveryReqeust;
+use App\Http\Requests\Users\UpdateFcmTokenRequest;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -122,6 +123,22 @@ class UserController extends Controller
             "statusCode"=>200
         ]);
 
+    }
+
+    public function updateFcmToken(UpdateFcmTokenRequest $request)
+    {
+        $validatedData = $request->validated();
+        $user = Auth::user();
+
+        $user->profile()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['fcm_token' => $validatedData['fcm_token']]
+        );
+
+        return $this->successResponse([
+            "message" => "تم تحديث رمز الجهاز (FCM) بنجاح",
+            "statusCode" => 200
+        ]);
     }
 
 }
