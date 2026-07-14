@@ -123,7 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
+    Route::post('/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
 });
 
 

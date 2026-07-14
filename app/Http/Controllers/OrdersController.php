@@ -19,9 +19,9 @@ class OrdersController extends Controller
 {
     public function createOrder()
     {
-        $user_id        = auth()->id();
-        $admin          = User::where('role', 'admin')->first();
-        $adminProfileId = $admin->profile->id ?? null;
+        $user_id     = auth()->id();
+        $admin       = User::where('role', 'admin')->first();
+        $adminUserId = $admin->id ?? null;
         $cartItems      = Cart::where('user_id', $user_id)->get();
         $settings       = Setting::first();
         $wallet         = auth()->user()->wallet;
@@ -79,9 +79,9 @@ class OrdersController extends Controller
             });
 
             // Notify admin about new order (silent — won't break on failure)
-            if ($adminProfileId) {
+            if ($adminUserId) {
                 app(NotificationController::class)->sendOrderStatusNotification(new Request([
-                    'profile_id' => $adminProfileId,
+                    'profile_id' => $adminUserId,
                     'order_id'   => $order->id,
                     'title'      => '🛒 طلب جديد',
                     'status'     => 'طلب جديد من ' . auth()->user()->name,

@@ -113,18 +113,47 @@ class NotificationController extends Controller
         }
 
         try {
-            $message = CloudMessage::new()
+            // 1. Send via Topic ('offers')
+            $topicMessage = CloudMessage::new()
                 ->withTopic('offers')
                 ->withNotification(Notification::create($title, $body))
                 ->withData([
                     'type'     => 'new_offer',
                     'offer_id' => (string) $offerId,
                 ]);
-
-            $this->messaging->send($message);
-            Log::info("Offer notification broadcast | offer_id={$offerId} | title={$title}");
+            $this->messaging->send($topicMessage);
+            Log::info("Offer notification broadcast to topic 'offers' | offer_id={$offerId} | title={$title}");
         } catch (\Exception $e) {
-            Log::error('sendGlobalOfferNotification failed: ' . $e->getMessage());
+            Log::error("sendGlobalOfferNotification topic broadcast failed: " . $e->getMessage());
+        }
+
+        try {
+            // 2. Also send directly to all FCM tokens in profiles to ensure maximum reliability
+            $fcmTokens = Profile::whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->unique()
+                ->toArray();
+
+            if (!empty($fcmTokens)) {
+                foreach ($fcmTokens as $token) {
+                    try {
+                        $directMessage = CloudMessage::new()
+                            ->withToken($token)
+                            ->withNotification(Notification::create($title, $body))
+                            ->withData([
+                                'type'     => 'new_offer',
+                                'offer_id' => (string) $offerId,
+                            ]);
+                        $this->messaging->send($directMessage);
+                    } catch (\Exception $e) {
+                        Log::warning("Failed to send offer notification to token: {$token} | Error: " . $e->getMessage());
+                    }
+                }
+                Log::info("Offer notification sent to " . count($fcmTokens) . " individual tokens | offer_id={$offerId}");
+            }
+        } catch (\Exception $e) {
+            Log::error("sendGlobalOfferNotification direct tokens send failed: " . $e->getMessage());
         }
     }
 }
