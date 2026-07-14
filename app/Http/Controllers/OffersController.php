@@ -27,11 +27,15 @@ class OffersController extends Controller
             'price_after_discount' => $request->price_after_discount,
             'product_id' => $request->product_id,
         ]);
-        app(NotificationController::class)->sendGlobalOfferNotification(new Request([
-            'title'    => $offer->title,
-            'body'     => $offer->description,
-            'offer_id' => $offer->id
-        ]));
+        try {
+            app(NotificationController::class)->sendGlobalOfferNotification(new Request([
+                'title'    => $offer->title,
+                'body'     => $offer->description,
+                'offer_id' => $offer->id,
+            ]));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Offer notification failed: ' . $e->getMessage());
+        }
         return $this->successResponse([
             'status_code' => 201,
             'message' => 'تم اضافة العرض بنجاح',

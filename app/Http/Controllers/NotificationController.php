@@ -7,6 +7,7 @@ use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
 use App\Models\Profile;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -14,68 +15,116 @@ class NotificationController extends Controller
 
     public function __construct()
     {
-        $factory = (new Factory())->withServiceAccount(base_path(env('FIREBASE_CREDENTIALS')));
-        $this->messaging = $factory->createMessaging();
+        try {
+            $credentialsPath = base_path(env('FIREBASE_CREDENTIALS'));
+            if (!file_exists($credentialsPath)) {
+                Log::error('Firebase credentials file not found: ' . $credentialsPath);
+                $this->messaging = null;
+                return;
+            }
+            $factory = (new Factory())->withServiceAccount($credentialsPath);
+            $this->messaging = $factory->createMessaging();
+        } catch (\Exception $e) {
+            Log::error('Firebase initialization failed: ' . $e->getMessage());
+            $this->messaging = null;
+        }
     }
 
-    public function sendOrderStatusNotification(Request $request)
+    /**
+     * Send a push notification to a specific user identified by their user_id.
+     *
+     * Accepts:
+     *   - profile_id  (int)    : the user_id to notify
+     *   - order_id    (int)    : the order id (used in notification body)
+     *   - status      (string) : the message/status text to display
+     *   - title       (string) : [optional] custom notification title
+     *   - type        (string) : [optional] data payload type (default: 'order_status')
+     *
+     * This method is fully silent — it logs errors and never throws.
+     */
+    public function sendOrderStatusNotification(Request $request): void
     {
-        $request->validate([
-            'profile_id' => 'required|exists:profiles,user_id',
-            'order_id' => 'required',
-            'status' => 'required|string',
-        ]);
+        if (!$this->messaging) {
+            Log::warning('Firebase messaging not initialized, skipping notification.');
+            return;
+        }
 
-        $user = Profile::where('user_id', $request->profile_id)->first();
-        $deviceToken = $user->fcm_token; 
+        $profileId = $request->profile_id;
+        $orderId   = $request->order_id;
+        $status    = $request->status;
+        $title     = $request->title ?? 'تحديث في حالة الطلب 📦';
+        $type      = $request->type  ?? 'order_status';
 
+        if (!$profileId || !$orderId || !$status) {
+            Log::warning('sendOrderStatusNotification: missing required fields.', $request->all());
+            return;
+        }
+
+        $profile = Profile::where('user_id', $profileId)->first();
+        if (!$profile) {
+            Log::warning("sendOrderStatusNotification: no profile for user_id={$profileId}");
+            return;
+        }
+
+        $deviceToken = $profile->fcm_token;
         if (!$deviceToken) {
-            return response()->json(['message' => 'User does not have a registered device token.'], 404);
+            Log::info("sendOrderStatusNotification: no FCM token for user_id={$profileId}");
+            return;
         }
 
-        $message = CloudMessage::new()
-            ->withToken($deviceToken)
-            ->withNotification(Notification::create(
-                'تحديث في حالة الطلب 📦', 
-                "حالة طلبك #{$request->order_id} أصبحت: {$request->status}"
-            ))
-            ->withData([
-                'type' => 'order_status',
-                'order_id' => (string)$request->order_id,
-            ]);
-
         try {
+            $body = ($type === 'order_status')
+                ? "حالة طلبك #{$orderId}: {$status}"
+                : $status;
+
+            $message = CloudMessage::new()
+                ->withToken($deviceToken)
+                ->withNotification(Notification::create($title, $body))
+                ->withData([
+                    'type'     => $type,
+                    'order_id' => (string) $orderId,
+                ]);
+
             $this->messaging->send($message);
-            return response()->json(['message' => 'Order status notification sent successfully.']);
+            Log::info("Notification sent to user_id={$profileId} | type={$type} | status={$status}");
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to send notification: ' . $e->getMessage()], 500);
+            Log::error("sendOrderStatusNotification failed for user_id={$profileId}: " . $e->getMessage());
         }
     }
 
-    public function sendGlobalOfferNotification(Request $request)
+    /**
+     * Broadcast a global offer notification to all users subscribed to the 'offers' topic.
+     * This method is fully silent — it logs errors and never throws.
+     */
+    public function sendGlobalOfferNotification(Request $request): void
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'offer_id' => 'required',
-        ]);
+        if (!$this->messaging) {
+            Log::warning('Firebase messaging not initialized, skipping offer notification.');
+            return;
+        }
 
-        $message = CloudMessage::new()
-            ->withTopic('offers')
-            ->withNotification(Notification::create(
-                $request->title, 
-                $request->body
-            ))
-            ->withData([
-                'type' => 'new_offer',
-                'offer_id' => (string)$request->offer_id,
-            ]);
+        $title   = $request->title;
+        $body    = $request->body;
+        $offerId = $request->offer_id;
+
+        if (!$title || !$body || !$offerId) {
+            Log::warning('sendGlobalOfferNotification: missing required fields.', $request->all());
+            return;
+        }
 
         try {
+            $message = CloudMessage::new()
+                ->withTopic('offers')
+                ->withNotification(Notification::create($title, $body))
+                ->withData([
+                    'type'     => 'new_offer',
+                    'offer_id' => (string) $offerId,
+                ]);
+
             $this->messaging->send($message);
-            return response()->json(['message' => 'Global offer notification broadcasted successfully.']);
+            Log::info("Offer notification broadcast | offer_id={$offerId} | title={$title}");
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to broadcast offer: ' . $e->getMessage()], 500);
+            Log::error('sendGlobalOfferNotification failed: ' . $e->getMessage());
         }
     }
 }

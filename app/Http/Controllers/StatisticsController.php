@@ -12,29 +12,29 @@ use Carbon\Carbon;
 
 class StatisticsController extends Controller
 {
-    public function getStatistics()
+    public function getStatistics(Request $request)
     {
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $filter = $request->query('filter', 'this_month'); // this_week | this_month | last_month
+
+        [$startDate, $endDate] = $this->getDateRange($filter);
 
         $categoriesCount = Category::count();
-        $productsCount = Product::count();
+        $productsCount   = Product::count();
 
         $totalCustomers = User::where('role', 'customer')->count();
 
-        $totalCustomersThisMonth = User::where('role', 'customer')
-            ->whereMonth('created_at', $currentMonth)
-            ->whereYear('created_at', $currentYear)
+        $totalCustomersInPeriod = User::where('role', 'customer')
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->count();
 
         $totalSumOfOrdersTotalPrice = (float) Order::sum('total_price');
 
-        $totalSumOfOrdersTotalPriceThisMonth = (float) Order::whereMonth('created_at', $currentMonth)
-            ->whereYear('created_at', $currentYear)
+        $totalSumOfOrdersTotalPriceInPeriod = (float) Order::whereBetween('created_at', [$startDate, $endDate])
             ->sum('total_price');
 
         $statuses = ["جاري التجهيز", "تم التوصيل", "ملغي"];
-        
+
+        // All-time by status
         $totalSumOfOrdersByStatus = array_fill_keys($statuses, 0.0);
         $orderSumsByStatus = Order::groupBy('status')
             ->select('status', DB::raw('SUM(total_price) as total_sum'))
@@ -46,28 +46,31 @@ class StatisticsController extends Controller
             }
         }
 
-        $totalSumOfOrdersByStatusThisMonth = array_fill_keys($statuses, 0.0);
-        $orderSumsByStatusThisMonth = Order::whereMonth('created_at', $currentMonth)
-            ->whereYear('created_at', $currentYear)
+        // Period by status
+        $totalSumOfOrdersByStatusInPeriod = array_fill_keys($statuses, 0.0);
+        $orderSumsByStatusInPeriod = Order::whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('status')
             ->select('status', DB::raw('SUM(total_price) as total_sum'))
             ->pluck('total_sum', 'status')
             ->toArray();
-        foreach ($orderSumsByStatusThisMonth as $status => $sum) {
+        foreach ($orderSumsByStatusInPeriod as $status => $sum) {
             if (in_array($status, $statuses)) {
-                $totalSumOfOrdersByStatusThisMonth[$status] = (float) $sum;
+                $totalSumOfOrdersByStatusInPeriod[$status] = (float) $sum;
             }
         }
 
         $data = [
-            'categories_count' => $categoriesCount,
-            'products_count' => $productsCount,
-            'total_customers' => $totalCustomers,
-            'total_customers_registered_this_month' => $totalCustomersThisMonth,
-            'total_sum_of_orders_total_price' => $totalSumOfOrdersTotalPrice,
-            'total_sum_of_orders_total_price_this_month' => $totalSumOfOrdersTotalPriceThisMonth,
-            'total_sum_of_orders_by_status' => $totalSumOfOrdersByStatus,
-            'total_sum_of_orders_by_status_this_month' => $totalSumOfOrdersByStatusThisMonth,
+            'filter'                                    => $filter,
+            'period_start'                              => $startDate->toDateString(),
+            'period_end'                                => $endDate->toDateString(),
+            'categories_count'                          => $categoriesCount,
+            'products_count'                            => $productsCount,
+            'total_customers'                           => $totalCustomers,
+            'total_customers_registered_in_period'      => $totalCustomersInPeriod,
+            'total_sum_of_orders_total_price'           => $totalSumOfOrdersTotalPrice,
+            'total_sum_of_orders_total_price_in_period' => $totalSumOfOrdersTotalPriceInPeriod,
+            'total_sum_of_orders_by_status'             => $totalSumOfOrdersByStatus,
+            'total_sum_of_orders_by_status_in_period'   => $totalSumOfOrdersByStatusInPeriod,
         ];
 
         return $this->successResponse(
@@ -75,5 +78,27 @@ class StatisticsController extends Controller
             message: "تم جلب الإحصائيات بنجاح",
             statusCode: 200
         );
+    }
+
+    private function getDateRange(string $filter): array
+    {
+        switch ($filter) {
+            case 'this_week':
+                return [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek(),
+                ];
+            case 'last_month':
+                return [
+                    Carbon::now()->subMonth()->startOfMonth(),
+                    Carbon::now()->subMonth()->endOfMonth(),
+                ];
+            case 'this_month':
+            default:
+                return [
+                    Carbon::now()->startOfMonth(),
+                    Carbon::now()->endOfMonth(),
+                ];
+        }
     }
 }

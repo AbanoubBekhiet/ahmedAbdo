@@ -28,12 +28,12 @@ class AuthController extends Controller
             ]);
 
             $profile = Profile::create([
-                'user_id' => $user->id,
-                'latitude' => $validatedData['latitude'],
+                'user_id'   => $user->id,
+                'latitude'  => $validatedData['latitude'],
                 'longitude' => $validatedData['longitude'],
-                'shop_name' => $validatedData['shop_name'], 
-                'fcm_token' => $validatedData['fcm_token'],
-                'address' => $validatedData['address']
+                'shop_name' => $validatedData['shop_name'],
+                'fcm_token' => $validatedData['fcm_token'] ?? null,
+                'address'   => $validatedData['address'],
             ]);
 
             $wallet=Wallet::create([
