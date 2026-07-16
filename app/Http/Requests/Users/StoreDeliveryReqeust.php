@@ -31,7 +31,7 @@ class StoreDeliveryReqeust extends FormRequest
         'unique:users,phone_number',
         'regex:/^(010|011|012|015)[0-9]{8}$/'
     ],
-    'password' => 'required|string|max:255',
+    'password' => 'required|string|max:255|min:6',
 ];
     }
 
