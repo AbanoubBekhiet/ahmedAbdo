@@ -9,6 +9,7 @@ class UserTarget extends Model
     protected $fillable = [
         'user_id',
         'target_id',
+        'order_id',
     ];
 
     public function user()
@@ -18,6 +19,11 @@ class UserTarget extends Model
 
     public function target()
     {
-        return $this->belongsTo(Target::class);
+        return $this->belongsTo(Target::class)->withTrashed();
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 }

@@ -211,6 +211,7 @@ class OrdersController extends Controller
                         UserTarget::create([
                             'user_id'   => $order->user_id,
                             'target_id' => $target->id,
+                            'order_id'  => $order->id,
                         ]);
 
                         app(NotificationController::class)->sendOrderStatusNotification(new Request([
@@ -257,6 +258,7 @@ class OrdersController extends Controller
                     UserMonthlyTarget::create([
                         'user_id'           => $order->user_id,
                         'monthly_target_id' => $monthlyTarget->id,
+                        'order_id'          => $order->id,
                     ]);
 
                     app(NotificationController::class)->sendOrderStatusNotification(new Request([
@@ -285,57 +287,42 @@ class OrdersController extends Controller
             // If it was previously delivered, reverse the awarded targets
             if ($oldStatus === 'تم التوصيل') {
 
-                // Reverse non-monthly target for this order
-                $targets = Target::orderBy('points', 'desc')->get();
-                foreach ($targets as $target) {
-                    if ($target->goal <= $order->total_price) {
+                // Reverse non-monthly target for this order using order_id
+                $userTarget = UserTarget::where('order_id', $order->id)->first();
+                if ($userTarget) {
+                    $target = $userTarget->target;
+                    if ($target) {
                         $wallet = $order->user->wallet;
                         if ($wallet) {
                             $wallet->update([
                                 'balance' => max(0, $wallet->balance - $target->points),
                             ]);
                         }
-                        // Remove the most recent UserTarget record for this target
-                        $userTarget = UserTarget::where('user_id', $order->user_id)
-                            ->where('target_id', $target->id)
-                            ->orderBy('created_at', 'desc')
-                            ->first();
-                        if ($userTarget) {
-                            $userTarget->delete();
-                        }
-                        break;
                     }
+                    $userTarget->delete();
                 }
 
-                // Reverse monthly targets
+                // Reverse monthly targets sum in user profile
                 $profile = $order->user->profile;
                 if ($profile) {
                     $oldTotal = $profile->total_orders_price_in_current_month;
                     $newTotal = max(0, $oldTotal - $order->total_price);
                     $profile->update(['total_orders_price_in_current_month' => $newTotal]);
-                } else {
-                    $newTotal = 0;
                 }
 
-                $currentMonth = now()->month;
-                $currentYear  = now()->year;
-
-                $achievedMonthlyTargets = UserMonthlyTarget::where('user_id', $order->user_id)
-                    ->whereMonth('created_at', $currentMonth)
-                    ->whereYear('created_at', $currentYear)
-                    ->get();
-
-                foreach ($achievedMonthlyTargets as $userMonthlyTarget) {
+                // Delete any user monthly targets earned from THIS specific order using order_id
+                $userMonthlyTargets = UserMonthlyTarget::where('order_id', $order->id)->get();
+                foreach ($userMonthlyTargets as $userMonthlyTarget) {
                     $monthlyTarget = $userMonthlyTarget->monthlyTarget;
-                    if ($monthlyTarget && $monthlyTarget->goal > $newTotal) {
+                    if ($monthlyTarget) {
                         $wallet = $order->user->wallet;
                         if ($wallet) {
                             $wallet->update([
                                 'balance' => max(0, $wallet->balance - $monthlyTarget->points),
                             ]);
                         }
-                        $userMonthlyTarget->delete();
                     }
+                    $userMonthlyTarget->delete();
                 }
             }
         }
