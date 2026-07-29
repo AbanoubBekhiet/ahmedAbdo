@@ -30,6 +30,8 @@ class ProductsController extends Controller
 
         if ($request->has('status') && $request->input('status') !== null && $request->input('status') !== '') {
             $query->where('status', $status);
+        } else {
+            $query->where('status', 1);
         }
 
         $products = $query->cursorPaginate(30);

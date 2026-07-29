@@ -156,4 +156,53 @@ class NotificationController extends Controller
             Log::error("sendGlobalOfferNotification direct tokens send failed: " . $e->getMessage());
         }
     }
+
+    /**
+     * Send a notification to all admins and sub-admins about a new customer signup.
+     */
+    public function sendNewCustomerNotification($newCustomer): void
+    {
+        if (!$this->messaging) {
+            Log::warning('Firebase messaging not initialized, skipping new customer notification.');
+            return;
+        }
+
+        try {
+            // Get FCM tokens for all admins and sub_admins
+            $tokens = Profile::whereHas('user', function ($query) {
+                    $query->whereIn('role', ['admin', 'sub_admin']);
+                })
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->unique()
+                ->toArray();
+
+            if (empty($tokens)) {
+                Log::info("sendNewCustomerNotification: No admin/sub_admin FCM tokens found.");
+                return;
+            }
+
+            $title = "عميل جديد سجل في التطبيق 🎉";
+            $body = "سجل العميل الجديد: " . $newCustomer->name . " (هاتف: " . $newCustomer->phone_number . ")";
+
+            foreach ($tokens as $token) {
+                try {
+                    $message = CloudMessage::new()
+                        ->withToken($token)
+                        ->withNotification(Notification::create($title, $body))
+                        ->withData([
+                            'type' => 'new_customer_signup',
+                            'user_id' => (string) $newCustomer->id,
+                        ]);
+                    $this->messaging->send($message);
+                } catch (\Exception $e) {
+                    Log::warning("Failed to send new customer signup notification to token: {$token} | Error: " . $e->getMessage());
+                }
+            }
+            Log::info("New customer signup notification sent to " . count($tokens) . " admin/sub_admin tokens.");
+        } catch (\Exception $e) {
+            Log::error("sendNewCustomerNotification failed: " . $e->getMessage());
+        }
+    }
 }

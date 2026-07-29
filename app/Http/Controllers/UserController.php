@@ -62,34 +62,35 @@ class UserController extends Controller
             "statusCode"=>200
         ]);
     }
-    public function showDeliveryBoys()
+
+    public function showSubAdmins()
     {
-        $users=User::with('profile')->where('role','delivery')->orderBy('created_at','desc')->cursorPaginate(30);
+        $users=User::with('profile')->where('role','sub_admin')->orderBy('created_at','desc')->cursorPaginate(30);
         return $this->successResponse([
-            "message"=>"تم جلب بيانات الديلفري بنجاح",
+            "message"=>"تم جلب بيانات المسؤولين الفرعيين بنجاح",
             "data"=>$users,
             "statusCode"=>200
         ]);
     }
 
-    public function storeDeliveryBoy(StoreDeliveryReqeust $request){
+    public function storeSubAdmin(StoreDeliveryReqeust $request){
         $validatedData=$request->validated();
         $user=User::create([
             'name'=>$validatedData['name'],
             'phone_number'=>$validatedData['phone_number'],
             'password'=>Hash::make($validatedData['password']),
-            'role'=>'delivery',
+            'role'=>'sub_admin',
         ]);
         return $this->successResponse([
-            "message"=>"تم اضافة الديلفري بنجاح",
+            "message"=>"تم اضافة المسؤول الفرعي بنجاح",
             "data"=>$user,
             "statusCode"=>200
         ]);
     }
 
-    public function updateDeliveryBoy(UpdateDeliveryReqeust $request, $id){
+    public function updateSubAdmin(UpdateDeliveryReqeust $request, $id){
         $validatedData=$request->validated();
-        $user=User::where('id',$id)->where('role','delivery')->first();
+        $user=User::where('id',$id)->where('role','sub_admin')->first();
         if(!$user){
             return $this->errorResponse(
                 "المستخدم غير موجود",
@@ -103,14 +104,14 @@ class UserController extends Controller
         ]);
         $user->load('profile');
         return $this->successResponse([
-            "message"=>"تم تحديث بيانات الديلفري بنجاح",
+            "message"=>"تم تحديث بيانات المسؤول الفرعي بنجاح",
             "data"=>$user,
             "statusCode"=>200
         ]);
     }
 
-    public function deleteDeliveryBoy($id){
-        $user=User::where('id',$id)->where('role','delivery')->first();
+    public function deleteSubAdmin($id){
+        $user=User::where('id',$id)->where('role','sub_admin')->first();
         if(!$user){
             return $this->errorResponse(
                 "المستخدم غير موجود",
@@ -119,7 +120,7 @@ class UserController extends Controller
         }
         $user->delete();
         return $this->successResponse([
-            "message"=>"تم حذف الديلفري بنجاح",
+            "message"=>"تم حذف المسؤول الفرعي بنجاح",
             "statusCode"=>200
         ]);
 

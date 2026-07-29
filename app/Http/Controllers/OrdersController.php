@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 
 class OrdersController extends Controller
 {
-    public function createOrder()
+    public function createOrder(Request $request)
     {
         $user_id     = auth()->id();
         $admin       = User::where('role', 'admin')->first();
@@ -45,16 +45,16 @@ class OrdersController extends Controller
         }
 
         $discount_amount = 0;
-        if ($wallet->balance > 0) {
-            if ($wallet->balance >= $totalPrice) {
-                $discount_amount = $totalPrice;
-                $wallet->update(['balance' => $wallet->balance - $totalPrice]);
-                $totalPrice = 0;
-            } else {
-                $discount_amount = $wallet->balance;
-                $totalPrice      = $totalPrice - $wallet->balance;
-                $wallet->update(['balance' => 0]);
+        $useWallet = $request->boolean('use_wallet') || $request->boolean('use_balance');
+
+        if ($useWallet && $wallet->balance > 0) {
+            if ($wallet->balance > $totalPrice) {
+                return $this->errorResponse('رصيد المحفظة أكبر من قيمة الطلب', 400);
             }
+
+            $discount_amount = $wallet->balance;
+            $totalPrice      = $totalPrice - $wallet->balance;
+            $wallet->update(['balance' => 0]);
         }
 
         try {
@@ -199,7 +199,7 @@ class OrdersController extends Controller
                 ->pluck('target_id')
                 ->toArray();
 
-            // Find the best single target the order qualifies for
+            // Find the best single target the order qualifies for (highest unearned target first)
             $targets = Target::orderBy('points', 'desc')->get();
             foreach ($targets as $target) {
                 if ($target->goal <= $order->total_price) {
@@ -221,9 +221,9 @@ class OrdersController extends Controller
                             'status'     => 'تهانينا! لقد ربحت ' . $target->points . ' نقطة',
                             'type'       => 'target_reward',
                         ]));
+
+                        break; // Award the highest unearned qualifying target and exit loop
                     }
-                    // We always break after the first qualifying target (highest points first)
-                    break;
                 }
             }
 

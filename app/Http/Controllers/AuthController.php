@@ -50,6 +50,13 @@ class AuthController extends Controller
         $profile = $result['profile'];
         $wallet = $result['wallet'];
         $token = $result['token'];
+
+        // Send notification to admins and sub_admins
+        try {
+            app(NotificationController::class)->sendNewCustomerNotification($user);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send signup notification: " . $e->getMessage());
+        }
         
         return $this->successResponse(
             message: 'تم إنشاء حسابك بنجاح',
