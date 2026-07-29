@@ -9,5 +9,6 @@ class Setting extends Model
     protected $fillable = [
         'min_order_products_count',
         'min_order_total_price',
+        'phone_number',
     ];
 }

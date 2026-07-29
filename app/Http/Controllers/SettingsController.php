@@ -12,22 +12,36 @@ class SettingsController extends Controller
     {
         $validated = $request->validated();
         $setting = Setting::first();
-        if(!$setting) {
-            $setting = Setting::create([
-                'min_order_products_count' => $validated['min_order_products_count'],
-                'min_order_total_price' => $validated['min_order_total_price'],
-            ]);
+
+        $phoneNumber = $request->phone_number ?? $request->support_phone;
+
+        $updateData = [];
+        if (!is_null($phoneNumber)) {
+            $updateData['phone_number'] = $phoneNumber;
+        }
+        if (!is_null($request->min_order_products_count)) {
+            $updateData['min_order_products_count'] = $request->min_order_products_count;
+        }
+        if (!is_null($request->min_order_total_price)) {
+            $updateData['min_order_total_price'] = $request->min_order_total_price;
+        }
+
+        if (!$setting) {
+            $setting = Setting::create(array_merge([
+                'min_order_products_count' => 1,
+                'min_order_total_price' => 0,
+                'phone_number' => '01000000000',
+            ], $updateData));
         } else {
-            $setting->update([
-                'min_order_products_count' => $request->min_order_products_count,
-                'min_order_total_price' => $request->min_order_total_price,
-            ]);
+            if (!empty($updateData)) {
+                $setting->update($updateData);
+            }
         }
 
         return $this->successResponse([
             "message" => "تم تحديث الاعدادات بنجاح",
             "data" => $setting,
-        ],200);
+        ], 200);
     }
 
     public function getSettings()

@@ -16,6 +16,7 @@ use App\Http\Controllers\OffersController;
 use App\Http\Controllers\MonthlyTargetController;
 use App\Http\Controllers\UserTargetController;
 use App\Http\Controllers\UserMonthlyTargetController;
+use App\Http\Controllers\RegionController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -139,4 +140,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/offers', [OffersController::class, 'store'])->middleware('role:admin,sub_admin');
     Route::delete('/offers/{offer}', [OffersController::class, 'destroy'])->middleware('role:admin,sub_admin');
     Route::get('/offers/{offer}', [OffersController::class, 'show']);
+});
+
+// Regions routes (Guests can list active, admin/sub-admin can perform CRUD)
+Route::get('/regions', [RegionController::class, 'index']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/regions', [RegionController::class, 'store'])->middleware('role:admin,sub_admin');
+    Route::put('/regions/{id}', [RegionController::class, 'update'])->middleware('role:admin,sub_admin');
+    Route::delete('/regions/{id}', [RegionController::class, 'destroy'])->middleware('role:admin,sub_admin');
 });

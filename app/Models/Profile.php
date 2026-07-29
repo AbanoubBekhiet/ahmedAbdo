@@ -8,6 +8,7 @@ class Profile extends Model
 {
     protected $fillable = [
         'user_id',
+        'region_id',
         'latitude',
         'longitude',
         'shop_name',
@@ -18,5 +19,10 @@ class Profile extends Model
     
     public function user(){
         return $this->belongsTo(User::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 }

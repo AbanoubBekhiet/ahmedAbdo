@@ -20,6 +20,15 @@ class OffersController extends Controller
     }
     public function store(StoreOfferRequest $request)
     {
+        if ($request->has('max_quantity') && !is_null($request->max_quantity)) {
+            $product = Product::find($request->product_id);
+            if ($product) {
+                $product->update([
+                    'max_quantity' => $request->max_quantity
+                ]);
+            }
+        }
+
         $offer = Offer::create([
             'title' => $request->title,
             'description' => $request->description,
@@ -39,7 +48,7 @@ class OffersController extends Controller
         return $this->successResponse([
             'status_code' => 201,
             'message' => 'تم اضافة العرض بنجاح',
-            'data' => $offer
+            'data' => $offer->load('product')
         ]);
     }
     public function destroy($id)

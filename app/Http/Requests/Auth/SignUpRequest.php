@@ -36,6 +36,7 @@ class SignUpRequest extends FormRequest
             'shop_name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'fcm_token' => 'nullable|string',
+            'region_id' => 'required|exists:regions,id',
          ];
     }
 
@@ -54,6 +55,8 @@ class SignUpRequest extends FormRequest
             'longitude.numeric' => 'خط الطول يجب أن يكون رقمًا.',
             'shop_name.required' => 'يرجى إدخال اسم المحل.',
             'address.required' => 'يرجى إدخال العنوان.',
+            'region_id.required' => 'يرجى اختيار المنطقة.',
+            'region_id.exists' => 'المنطقة المحددة غير صالحة.',
         ];
     }
 }

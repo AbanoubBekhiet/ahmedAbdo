@@ -29,6 +29,7 @@ class AuthController extends Controller
 
             $profile = Profile::create([
                 'user_id'   => $user->id,
+                'region_id' => $validatedData['region_id'],
                 'latitude'  => $validatedData['latitude'],
                 'longitude' => $validatedData['longitude'],
                 'shop_name' => $validatedData['shop_name'],
@@ -58,6 +59,8 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::error("Failed to send signup notification: " . $e->getMessage());
         }
         
+        $profile->load('region');
+
         return $this->successResponse(
             message: 'تم إنشاء حسابك بنجاح',
             data: [
@@ -73,6 +76,12 @@ class AuthController extends Controller
                     'longitude' => $profile->longitude,
                     'shop_name' => $profile->shop_name,
                     'address' => $profile->address,
+                    'region' => $profile->region ? [
+                        'id' => $profile->region->id,
+                        'name' => $profile->region->name,
+                        'min_order_price' => $profile->region->min_order_price,
+                        'min_order_products' => $profile->region->min_order_products,
+                    ] : null,
                 ],
             ],
             statusCode: 201
@@ -87,6 +96,9 @@ class AuthController extends Controller
         }
         
         $user = Auth::user();
+        $user->load(['profile.region', 'wallet']);
+        $profile = $user->profile;
+        $wallet = $user->wallet;
         
         $token = $user->createToken('authToken')->plainTextToken;
         
@@ -99,6 +111,18 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'phone_number' => $user->phone_number,
                     'role' => $user->role, 
+                    'fcm_token' => $profile->fcm_token ?? null,
+                    'balance' => $wallet->balance ?? 0,
+                    'latitude' => $profile->latitude ?? null,
+                    'longitude' => $profile->longitude ?? null,
+                    'shop_name' => $profile->shop_name ?? null,
+                    'address' => $profile->address ?? null,
+                    'region' => ($profile && $profile->region) ? [
+                        'id' => $profile->region->id,
+                        'name' => $profile->region->name,
+                        'min_order_price' => $profile->region->min_order_price,
+                        'min_order_products' => $profile->region->min_order_products,
+                    ] : null,
                 ],
             ],
            statusCode: 200

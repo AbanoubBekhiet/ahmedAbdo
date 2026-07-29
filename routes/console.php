@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 
 
 Schedule::command('profiles:reset-monthly-price')->monthly();
+Schedule::command('targets:reset-monthly-user-targets')->monthly();

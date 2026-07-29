@@ -30,6 +30,7 @@ class StoreOfferRequest extends FormRequest
             'end_date' => 'required|date_format:Y-m-d H:i:s|after:now',
             'price_after_discount' => 'required|numeric',
             'product_id' => 'required|exists:products,id',
+            'max_quantity' => 'nullable|integer|min:1',
         ];
     }
 
@@ -60,6 +61,8 @@ class StoreOfferRequest extends FormRequest
             'price_after_discount.numeric' => 'السعر بعد الخصم يجب أن يكون رقمًا',
             'product_id.required' => 'المنتج مطلوب',
             'product_id.exists' => 'المنتج غير موجود',
+            'max_quantity.integer' => 'أقصى كمية يجب أن تكون عدداً صحيحاً',
+            'max_quantity.min' => 'أقصى كمية يجب أن تكون 1 على الأقل',
         ];
     }
 }

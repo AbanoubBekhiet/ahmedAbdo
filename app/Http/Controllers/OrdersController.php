@@ -36,12 +36,24 @@ class OrdersController extends Controller
             return $this->errorResponse('سلة المشتريات فارغة', 404);
         }
 
-        if ($totalPrice < $settings->min_order_total_price) {
-            return $this->errorResponse('سعر الطلب أقل من المطلوب', 404);
+        $user = auth()->user();
+        $user->load('profile.region');
+        $region = $user->profile->region ?? null;
+
+        $minOrderTotalPrice = ($region && $region->min_order_price !== null) 
+            ? (float) $region->min_order_price 
+            : 0.0;
+
+        $minOrderProductsCount = ($region && $region->min_order_products !== null) 
+            ? (int) $region->min_order_products 
+            : 0;
+
+        if ($totalPrice < $minOrderTotalPrice) {
+            return $this->errorResponse('سعر الطلب أقل من الحد الأدنى للمنطقة (' . $minOrderTotalPrice . ' ج.م)', 400);
         }
 
-        if ($cartItems->count() < $settings->min_order_products_count) {
-            return $this->errorResponse('عدد المنتجات أقل من المطلوب', 404);
+        if ($cartItems->count() < $minOrderProductsCount) {
+            return $this->errorResponse('عدد المنتجات في السلة أقل من الحد الأدنى للمنطقة (' . $minOrderProductsCount . ' منتج)', 400);
         }
 
         $discount_amount = 0;
@@ -49,12 +61,14 @@ class OrdersController extends Controller
 
         if ($useWallet && $wallet->balance > 0) {
             if ($wallet->balance > $totalPrice) {
-                return $this->errorResponse('رصيد المحفظة أكبر من قيمة الطلب', 400);
+                $discount_amount = $totalPrice;
+                $wallet->update(['balance' => $wallet->balance - $totalPrice]);
+                $totalPrice      = 0;
+            } else {
+                $discount_amount = $wallet->balance;
+                $totalPrice      = $totalPrice - $wallet->balance;
+                $wallet->update(['balance' => 0]);
             }
-
-            $discount_amount = $wallet->balance;
-            $totalPrice      = $totalPrice - $wallet->balance;
-            $wallet->update(['balance' => 0]);
         }
 
         try {
@@ -78,15 +92,25 @@ class OrdersController extends Controller
                 return $order;
             });
 
-            // Notify admin about new order (silent — won't break on failure)
-            if ($adminUserId) {
-                app(NotificationController::class)->sendOrderStatusNotification(new Request([
-                    'profile_id' => $adminUserId,
-                    'order_id'   => $order->id,
-                    'title'      => '🛒 طلب جديد',
-                    'status'     => 'طلب جديد من ' . auth()->user()->name,
-                    'type'       => 'new_order',
-                ]));
+            // Notify admin and sub_admins about new order
+            $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
+            $notificationMsg = 'طلب جديد من ' . auth()->user()->name;
+            if ($discount_amount > 0) {
+                $notificationMsg .= ' (خصم من المحفظة: ' . $discount_amount . ' ج.م)';
+            }
+
+            foreach ($adminsAndSubAdmins as $receiver) {
+                try {
+                    app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                        'profile_id' => $receiver->id,
+                        'order_id'   => $order->id,
+                        'title'      => '🛒 طلب جديد',
+                        'status'     => $notificationMsg,
+                        'type'       => 'new_order',
+                    ]));
+                } catch (\Exception $e) {
+                    Log::error("Failed to notify user id={$receiver->id}: " . $e->getMessage());
+                }
             }
 
             return $this->successResponse([

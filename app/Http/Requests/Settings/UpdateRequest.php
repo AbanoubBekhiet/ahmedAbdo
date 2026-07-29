@@ -23,20 +23,17 @@ class UpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'min_order_products_count' => 'required|integer|min:1',
-            'min_order_total_price' => 'required|integer|min:1',
+            'phone_number' => 'nullable|string',
+            'support_phone' => 'nullable|string',
+            'min_order_products_count' => 'nullable|integer',
+            'min_order_total_price' => 'nullable|integer',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'min_order_products_count.required' => 'يجب إدخال اقل عدد للمنتجات .',
-            'min_order_products_count.integer' => 'اقل عدد للمنتجات يجب ان يكون رقم صحيح .',
-            'min_order_products_count.min' => 'اقل عدد للمنتجات هو 1 .',
-            'min_order_total_price.required' => 'يجب إدخال اقل سعر للمنتجات .',
-            'min_order_total_price.integer' => 'اقل سعر للمنتجات يجب ان يكون رقم صحيح .',
-            'min_order_total_price.min' => 'اقل سعر للمنتجات هو 1 .',
+            'phone_number.string' => 'رقم الهاتف يجب أن يكون نصاً.',
         ];
     }
 }
