@@ -144,7 +144,7 @@ class OrdersController extends Controller
     public function getAllOrders(Request $request)
     {
         $direction = in_array(strtolower($request->query('order')), ['asc', 'asce']) ? 'asc' : 'desc';
-        $orders    = Order::with('products')->orderBy('created_at', $direction)->cursorPaginate(30);
+        $orders    = Order::with(['products', 'user.profile'])->orderBy('created_at', $direction)->cursorPaginate(30);
 
         return response()->json([
             'status'  => 200,
@@ -156,7 +156,7 @@ class OrdersController extends Controller
     public function getSingleOrder($id)
     {
         $user  = auth()->user();
-        $query = Order::where('id', $id)->with('products');
+        $query = Order::where('id', $id)->with(['products', 'user.profile']);
 
         if (!$user->isAdmin()) {
             $query->where('user_id', $user->id);
@@ -176,7 +176,7 @@ class OrdersController extends Controller
 
     public function updateOrderStatus($id, Request $request)
     {
-        $valid = ['ملغي', 'تم التوصيل', 'جاري التجهيز'];
+        $valid = ['قيد الانتظار', 'تم التاكيد', 'تم الشحن', 'تم التوصيل', 'ملغي'];
         if (!in_array($request->status, $valid)) {
             return $this->errorResponse('الحالة غير صالحة', 400);
         }
@@ -191,9 +191,11 @@ class OrdersController extends Controller
 
         // ── Notify the customer of the status update ───────────────────────
         $statusMessages = [
-            'ملغي'         => 'عذراً! تم إلغاء طلبك.',
+            'قيد الانتظار' => 'طلبك قيد الانتظار حتى يتم مراجعته.',
+            'تم التاكيد'   => 'تم تأكيد طلبك بنجاح ✅',
+            'تم الشحن'     => 'تم شحن طلبك وهو في الطريق إليك 🚚',
             'تم التوصيل'   => 'تم توصيل طلبك بنجاح 🎉',
-            'جاري التجهيز' => 'جاري تجهيز طلبك ⏳',
+            'ملغي'         => 'عذراً! تم إلغاء طلبك.',
         ];
         $messageText = $statusMessages[$request->status] ?? 'تم تحديث حالة طلبك.';
 

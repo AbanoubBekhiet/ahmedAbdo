@@ -113,8 +113,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [UserController::class, 'myProfile']);
     Route::put('/profile/update', [UserController::class, 'updateProfile']);
     Route::put('/profile/fcm-token', [UserController::class, 'updateFcmToken']);
+    Route::put('/profile/change-password', [UserController::class, 'changeMyPassword']);
+    Route::put('/profile/update-phone', [UserController::class, 'updateMyPhone']);
     // sub_admin can view customers
     Route::get('/users/customers', [UserController::class, 'showCustomers'])->middleware('role:admin,sub_admin');
+    // Only admin can reset customer password
+    Route::put('/users/customer/{customer}/password', [UserController::class, 'updateCustomerPassword'])->middleware('role:admin');
     // Only admin manages sub-admins
     Route::get('/users/sub-admins', [UserController::class, 'showSubAdmins'])->middleware('role:admin');
     Route::post('/users/sub-admin', [UserController::class, 'storeSubAdmin'])->middleware('role:admin');

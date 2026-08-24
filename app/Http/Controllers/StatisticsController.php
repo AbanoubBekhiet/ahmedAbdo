@@ -15,16 +15,16 @@ class StatisticsController extends Controller
     public function getStatistics(Request $request)
     {
         $filter = $request->input('filter', 'this_month');
-        $validFilters = ['this_month', 'last_month', 'this_year'];
+        $validFilters = ['this_month', 'last_month', 'this_year', 'custom'];
 
-        if (!in_array($filter, $validFilters)) {
+        if (!in_array($filter, $validFilters) && !($request->has('period_start') && $request->has('period_end'))) {
             return $this->errorResponse(
-                'الفلتر غير صالح. القيم المتاحة: this_month, last_month, this_year',
+                'الفلتر غير صالح. القيم المتاحة: this_month, last_month, this_year, custom',
                 400
             );
         }
 
-        [$startDate, $endDate] = $this->getDateRange($filter);
+        [$startDate, $endDate] = $this->getDateRange($request, $filter);
 
         // ── Global counts ────────────────────────────────────────────────
         $categoriesCount = Category::count();
@@ -35,7 +35,7 @@ class StatisticsController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->count();
 
-        $statuses = ['جاري التجهيز', 'تم التوصيل', 'ملغي'];
+        $statuses = ['قيد الانتظار', 'تم التاكيد', 'تم الشحن', 'تم التوصيل', 'ملغي'];
 
         $orderStats = Order::whereBetween('created_at', [$startDate, $endDate])
             ->select(
@@ -61,9 +61,18 @@ class StatisticsController extends Controller
             ->get();
 
         foreach ($byStatus as $row) {
-            if (in_array($row->status, $statuses)) {
-                $ordersSumByStatus[$row->status]   = (float) $row->total_sum;
-                $ordersCountByStatus[$row->status] = (int)   $row->cnt;
+            $st = $row->status;
+            if (in_array($st, ['جديد', 'new', 'جاري التجهيز', 'جاري التحضير', 'قيد التحضير'])) {
+                $st = 'قيد الانتظار';
+            } elseif (in_array($st, ['تم التسليم', 'ناجحة'])) {
+                $st = 'تم التوصيل';
+            } elseif ($st === 'ملغاة') {
+                $st = 'ملغي';
+            }
+
+            if (isset($ordersCountByStatus[$st])) {
+                $ordersSumByStatus[$st]   += (float) $row->total_sum;
+                $ordersCountByStatus[$st] += (int)   $row->cnt;
             }
         }
 
@@ -88,9 +97,20 @@ class StatisticsController extends Controller
         );
     }
 
-    private function getDateRange(string $filter): array
+    private function getDateRange(Request $request, string $filter): array
     {
         $now = Carbon::now();
+
+        if ($filter === 'custom' || ($request->has('period_start') && $request->has('period_end'))) {
+            $start = $request->input('period_start');
+            $end   = $request->input('period_end');
+            if ($start && $end) {
+                return [
+                    Carbon::parse($start)->startOfDay(),
+                    Carbon::parse($end)->endOfDay(),
+                ];
+            }
+        }
 
         switch ($filter) {
             case 'last_month':

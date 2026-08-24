@@ -146,4 +146,88 @@ class UserController extends Controller
         ]);
     }
 
+    public function updateCustomerPassword(Request $request, $id)
+    {
+        $request->validate([
+            'password' => 'required|string|min:6',
+        ], [
+            'password.required' => 'كلمة المرور مطلوبة',
+            'password.min' => 'يجب أن تكون كلمة المرور 6 أرقام/حروف على الأقل',
+        ]);
+
+        $user = User::where('id', $id)->where('role', 'customer')->first();
+        if (!$user) {
+            return $this->errorResponse(
+                "العميل غير موجود",
+                404
+            );
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('password')),
+        ]);
+
+        return $this->successResponse([
+            "message" => "تم تحديث كلمة مرور العميل بنجاح",
+            "statusCode" => 200
+        ]);
+    }
+
+    public function changeMyPassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:6|same:confirm_password',
+            'confirm_password' => 'required|string',
+        ], [
+            'old_password.required' => 'كلمة المرور القديمة مطلوبة',
+            'new_password.required' => 'كلمة المرور الجديدة مطلوبة',
+            'new_password.min' => 'يجب أن تكون كلمة المرور الجديدة 6 أرقام/حروف على الأقل',
+            'new_password.same' => 'كلمة المرور الجديدة وتأكيدها غير متطابقين',
+            'confirm_password.required' => 'تأكيد كلمة المرور مطلوب',
+        ]);
+
+        $user = Auth::user();
+
+        if (!Hash::check($request->input('old_password'), $user->password)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'كلمة المرور القديمة غير صحيحة',
+                'errors' => [
+                    'old_password' => ['كلمة المرور القديمة غير صحيحة']
+                ]
+            ], 400);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('new_password')),
+        ]);
+
+        return $this->successResponse([
+            "message" => "تم تغيير كلمة المرور بنجاح",
+            "statusCode" => 200
+        ]);
+    }
+
+    public function updateMyPhone(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'phone_number' => 'required|string|unique:users,phone_number,' . $user->id,
+        ], [
+            'phone_number.required' => 'رقم الهاتف مطلوب',
+            'phone_number.unique' => 'رقم الهاتف مستخدم بالفعل بحساب آخر',
+        ]);
+
+        $user->update([
+            'phone_number' => $request->input('phone_number'),
+        ]);
+
+        return $this->successResponse([
+            "message" => "تم تحديث رقم الهاتف بنجاح",
+            "data" => $user,
+            "statusCode" => 200
+        ]);
+    }
 }

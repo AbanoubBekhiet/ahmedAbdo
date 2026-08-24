@@ -37,13 +37,19 @@ class OffersController extends Controller
             'product_id' => $request->product_id,
         ]);
         try {
-            app(NotificationController::class)->sendGlobalOfferNotification(new Request([
-                'title'    => $offer->title,
-                'body'     => $offer->description,
-                'offer_id' => $offer->id,
-            ]));
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Offer notification failed: ' . $e->getMessage());
+            dispatch(function () use ($offer) {
+                try {
+                    app(NotificationController::class)->sendGlobalOfferNotification(new Request([
+                        'title'    => $offer->title,
+                        'body'     => $offer->description,
+                        'offer_id' => $offer->id,
+                    ]));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Offer notification error: ' . $e->getMessage());
+                }
+            })->afterResponse();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Offer notification dispatch failed: ' . $e->getMessage());
         }
         return $this->successResponse([
             'status_code' => 201,
