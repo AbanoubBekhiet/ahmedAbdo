@@ -32,6 +32,7 @@ class StoreDeliveryReqeust extends FormRequest
         'regex:/^(010|011|012|015)[0-9]{8}$/'
     ],
     'password' => 'required|string|max:255|min:6',
+    'fcm_token' => 'nullable|string',
 ];
     }
 

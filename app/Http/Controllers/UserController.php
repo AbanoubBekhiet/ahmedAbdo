@@ -81,6 +81,12 @@ class UserController extends Controller
             'password'=>Hash::make($validatedData['password']),
             'role'=>'sub_admin',
         ]);
+
+        $user->profile()->create([
+            'fcm_token' => $validatedData['fcm_token'] ?? null,
+        ]);
+
+        $user->load('profile');
         return $this->successResponse([
             "message"=>"تم اضافة المسؤول الفرعي بنجاح",
             "data"=>$user,
@@ -98,8 +104,6 @@ class UserController extends Controller
             );
         }
         $user->update([
-            'name'=>$validatedData['name'],
-            'phone_number'=>$validatedData['phone_number'],
             'password'=>isset($validatedData['password'])?Hash::make($validatedData['password']):$user->password,
         ]);
         $user->load('profile');

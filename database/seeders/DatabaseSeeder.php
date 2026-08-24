@@ -35,11 +35,14 @@ class DatabaseSeeder extends Seeder
             'fcm_token' => 'e_dsOA57QUO3K8m-pVymMY:APA91bG38YToHSaYt2ySryOHGKBKdUI4mtE7EQZI9oV_EEeEQ3ky9gGioB3dImhPxYHfQiDeOgKMG_GgW3UxC3cAoONiJDkBytLlp-s8YJGsEv05LR_crvc',
         ]);
 
-        User::create([
+        $delivery = User::create([
             'name' => 'delivery',
             'password' => Hash::make('password'),
             'phone_number' => '01283324042',
-            'role' => 'delivery'
+            'role' => 'sub_admin'
+        ]);
+        Profile::create([
+            'user_id' => $delivery->id,
         ]);
 
         Setting::create([

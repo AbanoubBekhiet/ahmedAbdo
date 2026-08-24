@@ -22,28 +22,17 @@ class UpdateDeliveryReqeust extends FormRequest
      */
     public function rules(): array
     {
-        $userParam = $this->route('delivery_boy') ?? $this->route('id');
-        $userId = is_object($userParam) ? $userParam->id : $userParam;  
 
         return [
-            'name'=>'required|string|max:255',
-            'phone_number'=>[
-                'required',
-                'string',
-                'max:20',
-                'unique:users,phone_number,'.$userId,
-                'regex:/^(010|011|012|015)[0-9]{8}$/'
-            ],
-            'password'=>'nullable|string|max:255',
+            'password'=>'required|string|min:6',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'name.required'=>'الاسم مطلوب',
-            'phone_number.required'=>'رقم الهاتف مطلوب',
-            'phone_number.unique'=>'رقم الهاتف موجود بالفعل',
+            'password.required'=>'كلمة المرور مطلوبة',
+            'password.min'=>'كلمة المرور يجب أن تكون 6 حرف كحد أدنى',
         ];
     }
 
