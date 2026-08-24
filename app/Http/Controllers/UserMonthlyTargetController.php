@@ -7,11 +7,22 @@ use App\Http\Requests\UserMonthlyTargets\StoreRequest;
 use App\Http\Requests\UserMonthlyTargets\UpdateRequest;
 use Illuminate\Http\Request;
 
+use Illuminate\Support\Facades\Auth;
+
 class UserMonthlyTargetController extends Controller
 {
     public function index()
     {
-        $userMonthlyTargets = UserMonthlyTarget::with(['user', 'monthlyTarget'])->get();
+        $query = UserMonthlyTarget::with(['user', 'monthlyTarget']);
+        $user = Auth::user();
+
+        if ($user && $user->role === 'customer') {
+            $query->where('user_id', $user->id);
+        } else if (request()->has('user_id')) {
+            $query->where('user_id', request('user_id'));
+        }
+
+        $userMonthlyTargets = $query->get();
         return $this->successResponse([
             'status' => 'success',
             'message' => 'تم جلب الأهداف الشهرية للمستخدمين بنجاح',

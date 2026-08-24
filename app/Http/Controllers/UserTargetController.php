@@ -7,11 +7,22 @@ use App\Http\Requests\UserTargets\StoreRequest;
 use App\Http\Requests\UserTargets\UpdateRequest;
 use Illuminate\Http\Request;
 
+use Illuminate\Support\Facades\Auth;
+
 class UserTargetController extends Controller
 {
     public function index()
     {
-        $userTargets = UserTarget::with(['user', 'target'])->get();
+        $query = UserTarget::with(['user', 'target']);
+        $user = Auth::user();
+
+        if ($user && $user->role === 'customer') {
+            $query->where('user_id', $user->id);
+        } else if (request()->has('user_id')) {
+            $query->where('user_id', request('user_id'));
+        }
+
+        $userTargets = $query->get();
         return $this->successResponse([
             'status' => 'success',
             'message' => 'تم جلب أهداف المستخدمين بنجاح',

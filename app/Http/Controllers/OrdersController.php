@@ -255,14 +255,19 @@ class OrdersController extends Controller
 
             // ── Monthly Target: accumulated order total for the month ────────
             $profile = $order->user->profile;
+            $newTotal = Order::where('user_id', $order->user_id)
+                ->where('status', 'تم التوصيل')
+                ->whereMonth('created_at', $currentMonth)
+                ->whereYear('created_at', $currentYear)
+                ->sum('total_price');
+
             if (!$profile) {
                 $profile = $order->user->profile()->create([
-                    'total_orders_price_in_current_month' => 0,
+                    'total_orders_price_in_current_month' => $newTotal,
                 ]);
+            } else {
+                $profile->update(['total_orders_price_in_current_month' => $newTotal]);
             }
-
-            $newTotal = $profile->total_orders_price_in_current_month + $order->total_price;
-            $profile->update(['total_orders_price_in_current_month' => $newTotal]);
 
             // Find which monthly targets have already been achieved this month
             $achievedMonthlyTargetIds = UserMonthlyTarget::where('user_id', $order->user_id)
@@ -328,27 +333,38 @@ class OrdersController extends Controller
                     $userTarget->delete();
                 }
 
-                // Reverse monthly targets sum in user profile
+                // Recalculate monthly total for current month
+                $currentMonth = now()->month;
+                $currentYear  = now()->year;
+
+                $newTotal = Order::where('user_id', $order->user_id)
+                    ->where('status', 'تم التوصيل')
+                    ->whereMonth('created_at', $currentMonth)
+                    ->whereYear('created_at', $currentYear)
+                    ->sum('total_price');
+
                 $profile = $order->user->profile;
                 if ($profile) {
-                    $oldTotal = $profile->total_orders_price_in_current_month;
-                    $newTotal = max(0, $oldTotal - $order->total_price);
                     $profile->update(['total_orders_price_in_current_month' => $newTotal]);
                 }
 
-                // Delete any user monthly targets earned from THIS specific order using order_id
-                $userMonthlyTargets = UserMonthlyTarget::where('order_id', $order->id)->get();
+                // Revoke any monthly targets earned this month if new total is below target goal
+                $userMonthlyTargets = UserMonthlyTarget::where('user_id', $order->user_id)
+                    ->whereMonth('created_at', $currentMonth)
+                    ->whereYear('created_at', $currentYear)
+                    ->get();
+
                 foreach ($userMonthlyTargets as $userMonthlyTarget) {
                     $monthlyTarget = $userMonthlyTarget->monthlyTarget;
-                    if ($monthlyTarget) {
+                    if ($monthlyTarget && $newTotal < $monthlyTarget->goal) {
                         $wallet = $order->user->wallet;
                         if ($wallet) {
                             $wallet->update([
                                 'balance' => max(0, $wallet->balance - $monthlyTarget->points),
                             ]);
                         }
+                        $userMonthlyTarget->delete();
                     }
-                    $userMonthlyTarget->delete();
                 }
             }
         }

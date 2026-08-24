@@ -34,6 +34,9 @@ class ResetMonthlyUserTargets extends Command
         $deletedUserMonthlyTargets = DB::table('user_monthly_targets')->delete();
         $this->info("Deleted {$deletedUserMonthlyTargets} records from user_monthly_targets.");
 
+        DB::table('profiles')->update(['total_orders_price_in_current_month' => 0]);
+        $this->info("Reset total_orders_price_in_current_month in profiles to 0.");
+
         $this->info('Successfully reset all user targets for the new month!');
     }
 }
