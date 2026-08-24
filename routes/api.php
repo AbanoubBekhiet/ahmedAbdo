@@ -134,7 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
+    Route::match(['get', 'post'], '/statistics', [StatisticsController::class, 'getStatistics'])->middleware('role:admin');
 });
 
 

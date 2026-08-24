@@ -144,7 +144,44 @@ class OrdersController extends Controller
     public function getAllOrders(Request $request)
     {
         $direction = in_array(strtolower($request->query('order')), ['asc', 'asce']) ? 'asc' : 'desc';
-        $orders    = Order::with(['products', 'user.profile'])->orderBy('created_at', $direction)->cursorPaginate(30);
+        $query = Order::with(['products', 'user.profile']);
+
+        // Date range filtering
+        $filter   = $request->query('filter') ?? $request->query('period');
+        $startStr = $request->query('start_date') ?? $request->query('period_start');
+        $endStr   = $request->query('end_date')   ?? $request->query('period_end');
+
+        if ($startStr && $endStr) {
+            $query->whereBetween('created_at', [
+                \Carbon\Carbon::parse($startStr)->startOfDay(),
+                \Carbon\Carbon::parse($endStr)->endOfDay(),
+            ]);
+        } elseif ($filter) {
+            $now = \Carbon\Carbon::now();
+            if ($filter === 'last_month') {
+                $query->whereBetween('created_at', [
+                    $now->copy()->subMonthNoOverflow()->startOfMonth(),
+                    $now->copy()->subMonthNoOverflow()->endOfMonth(),
+                ]);
+            } elseif ($filter === 'this_year') {
+                $query->whereBetween('created_at', [
+                    $now->copy()->startOfYear(),
+                    $now->copy()->endOfYear(),
+                ]);
+            } elseif ($filter === 'this_month') {
+                $query->whereBetween('created_at', [
+                    $now->copy()->startOfMonth(),
+                    $now->copy()->endOfMonth(),
+                ]);
+            }
+        }
+
+        // Status filtering
+        if ($request->has('status') && !empty($request->query('status'))) {
+            $query->where('status', $request->query('status'));
+        }
+
+        $orders = $query->orderBy('created_at', $direction)->cursorPaginate(30);
 
         return response()->json([
             'status'  => 200,

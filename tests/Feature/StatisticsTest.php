@@ -70,7 +70,7 @@ test('admin can fetch statistics', function () {
     // Authenticate as Admin
     Sanctum::actingAs($admin);
 
-    // Get statistics
+    // Get statistics for default filter (this_month)
     $response = $this->getJson('/api/statistics');
 
     $response->assertStatus(200)
@@ -82,6 +82,8 @@ test('admin can fetch statistics', function () {
                 'total_customers_registered_this_month' => 2,
                 'total_sum_of_orders_total_price' => 400.00,
                 'total_sum_of_orders_total_price_this_month' => 350.00,
+                'orders_count' => 2,
+                'orders_total_sum' => 350.00,
                 'total_sum_of_orders_by_status' => [
                     'جاري التجهيز' => 200.00,
                     'تم التوصيل' => 150.00,
@@ -90,8 +92,47 @@ test('admin can fetch statistics', function () {
                 'total_sum_of_orders_by_status_this_month' => [
                     'جاري التجهيز' => 200.00,
                     'تم التوصيل' => 150.00,
-                    'ملغي' => 0.00,
                 ],
+            ]
+        ]);
+
+    // Test statistics for last_month filter via POST
+    $postResponse = $this->postJson('/api/statistics', [
+        'filter' => 'last_month',
+    ]);
+
+    $postResponse->assertStatus(200)
+        ->assertJson([
+            'status' => 'success',
+            'data' => [
+                'filter' => 'last_month',
+                'orders_count' => 1,
+                'orders_total_sum' => 50.00,
+            ]
+        ]);
+});
+
+test('admin can fetch statistics with custom date range', function () {
+    $admin = User::create([
+        'name' => 'Admin User',
+        'role' => 'admin',
+        'phone_number' => '1234567891',
+        'password' => bcrypt('password'),
+    ]);
+
+    Sanctum::actingAs($admin);
+
+    $response = $this->postJson('/api/statistics', [
+        'filter' => 'custom',
+        'period_start' => now()->subDays(5)->toDateString(),
+        'period_end' => now()->toDateString(),
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'status' => 'success',
+            'data' => [
+                'filter' => 'custom',
             ]
         ]);
 });
