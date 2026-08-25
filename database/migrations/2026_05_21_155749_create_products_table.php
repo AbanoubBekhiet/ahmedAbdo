@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text("description")->nullable();
             $table->decimal("unit_price",10,2);
             $table->integer("max_quantity");
-            $table->enum("unit",["شريط","كرتونة","علبة"])->default("كرتونة");
+            $table->string("unit")->default("كرتونة");
             $table->boolean("status")->default(true);
             $table->timestamps();
         });

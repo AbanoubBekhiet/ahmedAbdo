@@ -31,7 +31,7 @@ class ProductsImport implements ToCollection, WithHeadingRow
                 'description' => 'nullable|string',
                 'unit_price' => 'required|numeric|min:0',
                 'max_quantity' => 'required|integer|min:0',
-                'unit' => 'nullable|in:شكارة,لفة,كرتونة,علبة,شريط,دستة,شرينك,قطعة',
+                'unit' => 'nullable|in:شكارة,لفة,كرتونة,علبة,شريط,دستة,شرينك,قطعة,بالتة',
                 'status' => 'nullable',
             ];
 
@@ -49,7 +49,7 @@ class ProductsImport implements ToCollection, WithHeadingRow
                 'unit_price.numeric' => 'سعر الوحدة يجب أن يكون رقماً في الصف ' . ($index + 2),
                 'max_quantity.required' => 'الكمية القصوى مطلوبة في الصف ' . ($index + 2),
                 'max_quantity.integer' => 'الكمية القصوى يجب أن تكون عدداً صحيحاً في الصف ' . ($index + 2),
-                'unit.in' => 'الوحدة يجب أن تكون شكارة، لفة، كرتونة، علبة، شريط، دستة، شرينك، أو قطعة في الصف ' . ($index + 2),
+                'unit.in' => 'الوحدة يجب أن تكون شكارة، لفة، كرتونة، علبة، شريط، دستة، شرينك، قطعة، أو بالتة في الصف ' . ($index + 2),
                 'category_id.exists' => 'رقم القسم غير موجود في الصف ' . ($index + 2),
                 'category.required' => 'القسم أو رقم القسم مطلوب في الصف ' . ($index + 2),
             ]);

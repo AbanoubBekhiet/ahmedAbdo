@@ -30,7 +30,7 @@ class UpdateRequest extends FormRequest
             'description'=>'required|string',
             'unit_price'=>'required|numeric',
             'max_quantity'=>'required|integer',
-            'unit'=>'required|in:شكارة,لفة,كرتونة,علبة,شريط,دستة,شرينك,قطعة',
+            'unit'=>'required|in:شكارة,لفة,كرتونة,علبة,شريط,دستة,شرينك,قطعة,بالتة',
             'status'=>'required|boolean',
             'image'=>'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
@@ -51,7 +51,7 @@ class UpdateRequest extends FormRequest
             'max_quantity.required'=>'الكمية القصوى مطلوبة',
             'max_quantity.integer'=>'الكمية القصوى يجب ان تكون رقم صحيح',
             'unit.required'=>'الوحدة مطلوبة',
-            'unit.in'=>'الوحدة يجب ان تكون شكارة, لفة, كرتونة, علبة, شريط, دستة, شرينك, أو قطعة',
+            'unit.in'=>'الوحدة يجب ان تكون شكارة, لفة, كرتونة, علبة, شريط, دستة, شرينك, قطعة, أو بالتة',
             'status.required'=>'الحالة مطلوبة',
             'status.boolean'=>'الحالة يجب ان تكون boolean',
             'image.image'=>'الصورة يجب ان تكون صورة',
