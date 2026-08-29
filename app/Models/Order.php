@@ -10,7 +10,14 @@ class Order extends Model
         'user_id',
         'total_price',
         'discount_amount',
-        'status'
+        'status',
+        'is_edited_by_customer',
+        'is_edited_by_admin'
+    ];
+
+    protected $casts = [
+        'is_edited_by_customer' => 'boolean',
+        'is_edited_by_admin'    => 'boolean',
     ];
     public function products()
     {

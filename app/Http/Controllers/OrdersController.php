@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Cart;
 use App\Models\Target;
 use App\Models\Setting;
@@ -411,5 +412,301 @@ class OrdersController extends Controller
             'message'     => 'تم تحديث الطلب بنجاح',
             'data'        => $order,
         ]);
+    }
+
+    public function updateCustomerOrder($id, Request $request)
+    {
+        $user = auth()->user();
+        $order = Order::with('products')->find($id);
+
+        if (!$order) {
+            return $this->errorResponse('الطلب غير موجود', 404);
+        }
+
+        if ($order->user_id !== $user->id && !$user->isAdmin()) {
+            return $this->errorResponse('غير مصرح لك بتعديل هذا الطلب', 403);
+        }
+
+        $allowedStatuses = ['قيد الانتظار', 'تم التاكيد', 'جاري التجهيز', 'جديد'];
+        if (!in_array($order->status, $allowedStatuses)) {
+            return $this->errorResponse('لا يمكن تعديل الطلب في حالته الحالية (' . $order->status . ')', 400);
+        }
+
+        $items = $request->input('items', []);
+        if (empty($items) || !is_array($items)) {
+            return $this->errorResponse('يجب اختيار منتج واحد على الأقل في الطلب', 400);
+        }
+
+        $user->load('profile.region');
+        $region = $user->profile->region ?? null;
+
+        $minOrderTotalPrice = ($region && $region->min_order_price !== null) 
+            ? (float) $region->min_order_price 
+            : 0.0;
+
+        $minOrderProductsCount = ($region && $region->min_order_products !== null) 
+            ? (int) $region->min_order_products 
+            : 0;
+
+        $newItemsTotal = 0;
+        $syncData = [];
+        $validItemsCount = 0;
+
+        foreach ($items as $item) {
+            $productId = $item['product_id'] ?? null;
+            $quantity = (int) ($item['number_of_units'] ?? $item['quantity'] ?? 0);
+            if (!$productId || $quantity <= 0) {
+                continue;
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                continue;
+            }
+
+            if ($product->max_quantity !== null && $product->max_quantity > 0 && $quantity > (int) $product->max_quantity) {
+                return $this->errorResponse('لا يمكن إضافة أكثر من ' . $product->max_quantity . ' من المنتج: ' . $product->name, 400);
+            }
+
+            $unitPrice = (float) ($product->unit_price ?? $product->price ?? 0);
+            $totalProductPrice = $unitPrice * $quantity;
+            $newItemsTotal += $totalProductPrice;
+            $validItemsCount++;
+
+            $syncData[$productId] = [
+                'number_of_units'     => $quantity,
+                'unit_price'          => $unitPrice,
+                'total_product_price' => $totalProductPrice,
+            ];
+        }
+
+        if (empty($syncData)) {
+            return $this->errorResponse('المنتجات المحددة غير صالحة', 400);
+        }
+
+        if ($newItemsTotal < $minOrderTotalPrice) {
+            return $this->errorResponse('سعر الطلب المعدل أقل من الحد الأدنى للمنطقة (' . $minOrderTotalPrice . ' ج.م)', 400);
+        }
+
+        if ($validItemsCount < $minOrderProductsCount) {
+            return $this->errorResponse('عدد المنتجات في الطلب أقل من الحد الأدنى للمنطقة (' . $minOrderProductsCount . ' منتج)', 400);
+        }
+
+        $discountAmount = (float) $order->discount_amount;
+        $totalPrice = $newItemsTotal;
+
+        if ($discountAmount > 0) {
+            if ($newItemsTotal < $discountAmount) {
+                $excessRefund = $discountAmount - $newItemsTotal;
+                $wallet = $user->wallet;
+                if ($wallet) {
+                    $wallet->update(['balance' => $wallet->balance + $excessRefund]);
+                }
+                $discountAmount = $newItemsTotal;
+                $totalPrice = 0;
+            } else {
+                $totalPrice = $newItemsTotal - $discountAmount;
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($order, $totalPrice, $discountAmount, $syncData) {
+                $order->update([
+                    'total_price'           => $totalPrice,
+                    'discount_amount'       => $discountAmount,
+                    'is_edited_by_customer' => true,
+                ]);
+
+                $order->products()->sync($syncData);
+            });
+
+            $order->load(['products', 'user.profile']);
+
+            $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
+            $notificationMsg = 'قام العميل ' . $user->name . ' بتعديل الطلب رقم #' . $order->id . ' (تم تعديله بواسطة العميل)';
+
+            foreach ($adminsAndSubAdmins as $receiver) {
+                try {
+                    app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                        'profile_id' => $receiver->id,
+                        'order_id'   => $order->id,
+                        'title'      => '✏️ تم تعديل طلب بواسطة العميل',
+                        'status'     => $notificationMsg,
+                        'type'       => 'order_edited',
+                    ]));
+                } catch (\Exception $e) {
+                    Log::error("Failed to notify user id={$receiver->id}: " . $e->getMessage());
+                }
+            }
+
+            return $this->successResponse([
+                'status_code' => 200,
+                'message'     => 'تم تعديل الطلب بنجاح',
+                'data'        => $order,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Order Update Failed: ' . $e->getMessage());
+            return $this->errorResponse('حدث خطأ أثناء تعديل الطلب', 500);
+        }
+    }
+
+    public function cancelCustomerOrder($id, Request $request)
+    {
+        $user = auth()->user();
+        $order = Order::find($id);
+
+        if (!$order) {
+            return $this->errorResponse('الطلب غير موجود', 404);
+        }
+
+        if ($order->user_id !== $user->id && !$user->isAdmin()) {
+            return $this->errorResponse('غير مصرح لك بإلغاء هذا الطلب', 403);
+        }
+
+        $allowedStatuses = ['قيد الانتظار', 'تم التاكيد', 'جاري التجهيز', 'جديد'];
+        if (!in_array($order->status, $allowedStatuses)) {
+            return $this->errorResponse('لا يمكن إلغاء الطلب في حالته الحالية (' . $order->status . ')', 400);
+        }
+
+        try {
+            DB::transaction(function () use ($order, $user) {
+                if ($order->discount_amount > 0) {
+                    $wallet = Wallet::where('user_id', $order->user_id)->first();
+                    if ($wallet) {
+                        $wallet->update(['balance' => $wallet->balance + $order->discount_amount]);
+                    }
+                    $order->discount_amount = 0;
+                }
+
+                $order->status = 'ملغي';
+                $order->save();
+            });
+
+            $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
+            $notificationMsg = 'قام العميل ' . $user->name . ' بإلغاء/حذف الطلب رقم #' . $order->id;
+
+            foreach ($adminsAndSubAdmins as $receiver) {
+                try {
+                    app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                        'profile_id' => $receiver->id,
+                        'order_id'   => $order->id,
+                        'title'      => '❌ تم إلغاء/حذف طلب بواسطة العميل',
+                        'status'     => $notificationMsg,
+                        'type'       => 'order_deleted',
+                    ]));
+                } catch (\Exception $e) {
+                    Log::error("Failed to notify user id={$receiver->id}: " . $e->getMessage());
+                }
+            }
+
+            return $this->successResponse([
+                'status_code' => 200,
+                'message'     => 'تم إلغاء الطلب بنجاح',
+                'data'        => $order,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Order Cancellation Failed: ' . $e->getMessage());
+            return $this->errorResponse('حدث خطأ أثناء إلغاء الطلب', 500);
+        }
+    }
+
+    public function updateAdminOrder($id, Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->isAdmin() && $user->role !== 'sub_admin') {
+            return $this->errorResponse('غير مصرح لك بتعديل الطلب كأدمن', 403);
+        }
+
+        $order = Order::with('products')->find($id);
+        if (!$order) {
+            return $this->errorResponse('الطلب غير موجود', 404);
+        }
+
+        $items = $request->input('items', []);
+        if (empty($items) || !is_array($items)) {
+            return $this->errorResponse('يجب اختيار منتج واحد على الأقل في الطلب', 400);
+        }
+
+        $newItemsTotal = 0;
+        $syncData = [];
+
+        foreach ($items as $item) {
+            $productId = $item['product_id'] ?? null;
+            $quantity = (int) ($item['number_of_units'] ?? $item['quantity'] ?? 0);
+            if (!$productId || $quantity <= 0) {
+                continue;
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                continue;
+            }
+
+            $unitPrice = (float) ($product->unit_price ?? $product->price ?? 0);
+            $totalProductPrice = $unitPrice * $quantity;
+            $newItemsTotal += $totalProductPrice;
+
+            $syncData[$productId] = [
+                'number_of_units'     => $quantity,
+                'unit_price'          => $unitPrice,
+                'total_product_price' => $totalProductPrice,
+            ];
+        }
+
+        if (empty($syncData)) {
+            return $this->errorResponse('المنتجات المحددة غير صالحة', 400);
+        }
+
+        $discountAmount = (float) $order->discount_amount;
+        $totalPrice = $newItemsTotal;
+
+        if ($discountAmount > 0) {
+            if ($newItemsTotal < $discountAmount) {
+                $excessRefund = $discountAmount - $newItemsTotal;
+                $wallet = Wallet::where('user_id', $order->user_id)->first();
+                if ($wallet) {
+                    $wallet->update(['balance' => $wallet->balance + $excessRefund]);
+                }
+                $discountAmount = $newItemsTotal;
+                $totalPrice = 0;
+            } else {
+                $totalPrice = $newItemsTotal - $discountAmount;
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($order, $totalPrice, $discountAmount, $syncData) {
+                $order->update([
+                    'total_price'        => $totalPrice,
+                    'discount_amount'    => $discountAmount,
+                    'is_edited_by_admin' => true,
+                ]);
+
+                $order->products()->sync($syncData);
+            });
+
+            $order->load(['products', 'user.profile']);
+
+            try {
+                app(NotificationController::class)->sendOrderStatusNotification(new Request([
+                    'profile_id' => $order->user_id,
+                    'order_id'   => $order->id,
+                    'title'      => '✏️ تم تعديل طلبك بواسطة الإدارة',
+                    'status'     => 'تم تعديل منتجات طلبك رقم #' . $order->id . ' بواسطة الإدارة',
+                    'type'       => 'order_edited_by_admin',
+                ]));
+            } catch (\Exception $e) {
+                Log::error("Failed to notify customer id={$order->user_id}: " . $e->getMessage());
+            }
+
+            return $this->successResponse([
+                'status_code' => 200,
+                'message'     => 'تم تعديل الطلب بواسطة الإدارة بنجاح',
+                'data'        => $order,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Order Update Failed: ' . $e->getMessage());
+            return $this->errorResponse('حدث خطأ أثناء تعديل الطلب بواسطة الإدارة', 500);
+        }
     }
 }
