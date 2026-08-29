@@ -225,7 +225,34 @@ class OrdersController extends Controller
         }
 
         $oldStatus = $order->status;
-        $order->update(['status' => $request->status]);
+        $newStatus = $request->status;
+
+        if ($oldStatus === 'تم التوصيل') {
+            return $this->errorResponse('لا يمكن تغيير حالة طلب تم توصيله بالفعل', 400);
+        }
+
+        if ($oldStatus === 'ملغي' || $oldStatus === 'ملغاة') {
+            return $this->errorResponse('لا يمكن تغيير حالة طلب ملغي بالفعل', 400);
+        }
+
+        $ranks = [
+            'قيد الانتظار' => 1,
+            'تم التاكيد'   => 2,
+            'تم الشحن'     => 3,
+            'تم التوصيل'   => 4,
+            'ملغي'         => 99,
+            'ملغاة'        => 99,
+        ];
+
+        if ($newStatus !== 'ملغي' && $newStatus !== 'ملغاة') {
+            $oldRank = $ranks[$oldStatus] ?? 1;
+            $newRank = $ranks[$newStatus] ?? 1;
+            if ($newRank <= $oldRank) {
+                return $this->errorResponse('لا يمكن إرجاع الطلب إلى حالة سابقة', 400);
+            }
+        }
+
+        $order->update(['status' => $newStatus]);
 
         // ── Notify the customer of the status update ───────────────────────
         $statusMessages = [
@@ -620,6 +647,10 @@ class OrdersController extends Controller
         $order = Order::with('products')->find($id);
         if (!$order) {
             return $this->errorResponse('الطلب غير موجود', 404);
+        }
+
+        if ($order->status === 'تم التوصيل' || $order->status === 'تم التسليم' || $order->status === 'ملغي' || $order->status === 'ملغاة') {
+            return $this->errorResponse('لا يمكن تعديل الطلب بعد تم توصيله أو إلغائه', 400);
         }
 
         $items = $request->input('items', []);
