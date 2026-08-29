@@ -12,7 +12,8 @@ class Order extends Model
         'discount_amount',
         'status',
         'is_edited_by_customer',
-        'is_edited_by_admin'
+        'is_edited_by_admin',
+        'canceled_by'
     ];
 
     protected $casts = [

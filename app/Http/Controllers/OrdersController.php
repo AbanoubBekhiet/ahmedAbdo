@@ -252,7 +252,11 @@ class OrdersController extends Controller
             }
         }
 
-        $order->update(['status' => $newStatus]);
+        $updateData = ['status' => $newStatus];
+        if ($newStatus === 'ملغي' || $newStatus === 'ملغاة') {
+            $updateData['canceled_by'] = 'admin';
+        }
+        $order->update($updateData);
 
         // ── Notify the customer of the status update ───────────────────────
         $statusMessages = [
@@ -606,6 +610,7 @@ class OrdersController extends Controller
                 }
 
                 $order->status = 'ملغي';
+                $order->canceled_by = ($user->isAdmin() || $user->role === 'sub_admin') ? 'admin' : 'customer';
                 $order->save();
             });
 
