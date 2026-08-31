@@ -36,7 +36,9 @@ class SignUpRequest extends FormRequest
             'shop_name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'fcm_token' => 'nullable|string',
-            'region_id' => 'required|exists:regions,id',
+            'region_id' => 'nullable|exists:regions,id',
+            'exterior_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+            'interior_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
          ];
     }
 

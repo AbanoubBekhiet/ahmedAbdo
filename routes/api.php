@@ -115,6 +115,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [UserController::class, 'myProfile']);
     Route::put('/profile/update', [UserController::class, 'updateProfile']);
+    Route::post('/profile/shop-photos', [UserController::class, 'updateShopPhotos']);
     Route::put('/profile/fcm-token', [UserController::class, 'updateFcmToken']);
     Route::put('/profile/change-password', [UserController::class, 'changeMyPassword']);
     Route::put('/profile/update-phone', [UserController::class, 'updateMyPhone']);

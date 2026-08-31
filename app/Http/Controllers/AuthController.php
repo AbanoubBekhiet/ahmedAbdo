@@ -29,7 +29,7 @@ class AuthController extends Controller
 
             $profile = Profile::create([
                 'user_id'   => $user->id,
-                'region_id' => $validatedData['region_id'],
+                'region_id' => $validatedData['region_id'] ?? \App\Models\Region::first()?->id,
                 'latitude'  => $validatedData['latitude'],
                 'longitude' => $validatedData['longitude'],
                 'shop_name' => $validatedData['shop_name'],
@@ -51,6 +51,17 @@ class AuthController extends Controller
         $profile = $result['profile'];
         $wallet = $result['wallet'];
         $token = $result['token'];
+
+        try {
+            if ($request->hasFile('exterior_photo')) {
+                $user->addMediaFromRequest('exterior_photo')->toMediaCollection('exterior_photo');
+            }
+            if ($request->hasFile('interior_photo')) {
+                $user->addMediaFromRequest('interior_photo')->toMediaCollection('interior_photo');
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to upload shop photos on register: " . $e->getMessage());
+        }
 
         // Send notification to admins and sub_admins
         try {
@@ -76,6 +87,8 @@ class AuthController extends Controller
                     'longitude' => $profile->longitude,
                     'shop_name' => $profile->shop_name,
                     'address' => $profile->address,
+                    'exterior_photo_url' => $user->exterior_photo_url,
+                    'interior_photo_url' => $user->interior_photo_url,
                     'region' => $profile->region ? [
                         'id' => $profile->region->id,
                         'name' => $profile->region->name,
@@ -117,6 +130,8 @@ class AuthController extends Controller
                     'longitude' => $profile->longitude ?? null,
                     'shop_name' => $profile->shop_name ?? null,
                     'address' => $profile->address ?? null,
+                    'exterior_photo_url' => $user->exterior_photo_url,
+                    'interior_photo_url' => $user->interior_photo_url,
                     'region' => ($profile && $profile->region) ? [
                         'id' => $profile->region->id,
                         'name' => $profile->region->name,

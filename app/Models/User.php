@@ -10,14 +10,46 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable(['name', 'phone_number', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements HasMedia
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable,HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, InteractsWithMedia;
+
+    protected $appends = ['exterior_photo_url', 'interior_photo_url'];
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('exterior_photo')->singleFile();
+        $this->addMediaCollection('interior_photo')->singleFile();
+    }
+
+    public function getExteriorPhotoUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('exterior_photo');
+        if (!$media) return null;
+        $url = $media->getUrl();
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+        return url($url);
+    }
+
+    public function getInteriorPhotoUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('interior_photo');
+        if (!$media) return null;
+        $url = $media->getUrl();
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+        return url($url);
+    }
 
     /**
      * Get the attributes that should be cast.

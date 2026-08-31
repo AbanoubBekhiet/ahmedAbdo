@@ -15,7 +15,7 @@ class UserController extends Controller
 {
     public function myProfile(){
         $user_id=Auth::id();
-        $user=User::with('profile')->where('id',$user_id)->first();
+        $user=User::with(['profile', 'media'])->where('id',$user_id)->first();
         if(!$user){
             return $this->errorResponse([
                 "message"=>"المستخدم غير موجود",
@@ -45,11 +45,39 @@ class UserController extends Controller
             'shop_name'=>$validatedData['shop_name'],
             'address'=>$validatedData['address'],
         ]);
-        $user->load('profile');
+        $user->load(['profile', 'media']);
         return $this->successResponse([
             "message"=>"تم تحديث بيانات المستخدم بنجاح",
             "data"=>$user,
             "statusCode"=>200
+        ]);
+    }
+
+    public function updateShopPhotos(Request $request)
+    {
+        $request->validate([
+            'exterior_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+            'interior_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+        ], [
+            'exterior_photo.image' => 'يرجى اختيار صورة صحيحة للواجهة الخارجية.',
+            'interior_photo.image' => 'يرجى اختيار صورة صحيحة لداخل المحل.',
+        ]);
+
+        $user = Auth::user();
+        if ($request->hasFile('exterior_photo')) {
+            $user->addMediaFromRequest('exterior_photo')->toMediaCollection('exterior_photo');
+        }
+        if ($request->hasFile('interior_photo')) {
+            $user->addMediaFromRequest('interior_photo')->toMediaCollection('interior_photo');
+        }
+
+        $user->unsetRelation('media');
+        $user->load(['profile', 'media']);
+
+        return $this->successResponse([
+            "message" => "تم تحديث صور المحل بنجاح",
+            "data" => $user,
+            "statusCode" => 200
         ]);
     }
 
