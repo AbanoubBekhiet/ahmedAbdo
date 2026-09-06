@@ -104,6 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/orders/{order}/customer-update', [OrdersController::class, 'updateCustomerOrder']);
     Route::put('/orders/{order}/admin-update', [OrdersController::class, 'updateAdminOrder'])->middleware('role:admin,sub_admin');
     Route::delete('/orders/{order}/customer-cancel', [OrdersController::class, 'cancelCustomerOrder']);
+    Route::get('/orders/{order}/edit-logs', [OrdersController::class, 'getEditLogs']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

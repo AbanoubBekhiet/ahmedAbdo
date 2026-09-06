@@ -15,6 +15,7 @@ use App\Models\Wallet;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\OrderEditLog;
 
 class OrdersController extends Controller
 {
@@ -133,7 +134,7 @@ class OrdersController extends Controller
     {
         $user_id   = auth()->id();
         $direction = in_array(strtolower($request->query('order')), ['asc', 'asce']) ? 'asc' : 'desc';
-        $orders    = Order::where('user_id', $user_id)->with('products')->orderBy('created_at', $direction)->cursorPaginate(30);
+        $orders    = Order::where('user_id', $user_id)->with(['products', 'editLogs'])->orderBy('created_at', $direction)->cursorPaginate(30);
 
         return $this->successResponse([
             'status_code' => 200,
@@ -145,7 +146,7 @@ class OrdersController extends Controller
     public function getAllOrders(Request $request)
     {
         $direction = in_array(strtolower($request->query('order')), ['asc', 'asce']) ? 'asc' : 'desc';
-        $query = Order::with(['products', 'user.profile']);
+        $query = Order::with(['products', 'user.profile', 'editLogs']);
 
         // Date range filtering
         $filter   = $request->query('filter') ?? $request->query('period');
@@ -194,9 +195,9 @@ class OrdersController extends Controller
     public function getSingleOrder($id)
     {
         $user  = auth()->user();
-        $query = Order::where('id', $id)->with(['products', 'user.profile']);
+        $query = Order::where('id', $id)->with(['products', 'user.profile', 'editLogs']);
 
-        if (!$user->isAdmin()) {
+        if (!$user->isAdmin() && !$user->isSubAdmin()) {
             $query->where('user_id', $user->id);
         }
 
@@ -540,6 +541,16 @@ class OrdersController extends Controller
             }
         }
 
+        // Capture old products before sync for diff
+        $oldProducts = [];
+        foreach ($order->products as $p) {
+            $oldProducts[$p->id] = [
+                'name'     => $p->name,
+                'quantity' => (int) $p->pivot->number_of_units,
+            ];
+        }
+        $oldTotal = (float) $order->total_price;
+
         try {
             DB::transaction(function () use ($order, $totalPrice, $discountAmount, $syncData) {
                 $order->update([
@@ -553,9 +564,22 @@ class OrdersController extends Controller
 
             $order->load(['products', 'user.profile']);
 
-            $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
-            $notificationMsg = 'قام العميل ' . $user->name . ' بتعديل الطلب رقم #' . $order->id . ' (تم تعديله بواسطة العميل)';
+            // Compute diff
+            $changes = $this->computeOrderDiff($oldProducts, $syncData, $oldTotal, $totalPrice);
 
+            // Save edit log
+            OrderEditLog::create([
+                'order_id'    => $order->id,
+                'edited_by'   => 'customer',
+                'editor_name' => $user->name,
+                'changes'     => $changes,
+            ]);
+
+            // Build notification message with summary
+            $changeSummary = $this->buildChangeSummary($changes);
+            $notificationMsg = 'قام العميل ' . $user->name . ' بتعديل الطلب رقم #' . $order->id . "\n" . $changeSummary;
+
+            $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
             foreach ($adminsAndSubAdmins as $receiver) {
                 try {
                     app(NotificationController::class)->sendOrderStatusNotification(new Request([
@@ -599,6 +623,17 @@ class OrdersController extends Controller
             return $this->errorResponse('لا يمكن إلغاء الطلب في حالته الحالية (' . $order->status . ')', 400);
         }
 
+        // Capture old products for cancel log
+        $order->load('products');
+        $cancelledProducts = [];
+        foreach ($order->products as $p) {
+            $cancelledProducts[] = [
+                'product_name' => $p->name,
+                'quantity'     => (int) $p->pivot->number_of_units,
+            ];
+        }
+        $oldTotal = (float) $order->total_price;
+
         try {
             DB::transaction(function () use ($order, $user) {
                 if ($order->discount_amount > 0) {
@@ -613,6 +648,22 @@ class OrdersController extends Controller
                 $order->canceled_by = ($user->isAdmin() || $user->role === 'sub_admin') ? 'admin' : 'customer';
                 $order->save();
             });
+
+            // Save cancel log
+            $canceledBy = ($user->isAdmin() || $user->role === 'sub_admin') ? 'admin' : 'customer';
+            OrderEditLog::create([
+                'order_id'    => $order->id,
+                'edited_by'   => $canceledBy,
+                'editor_name' => $user->name,
+                'changes'     => [
+                    'type'      => 'cancel',
+                    'old_total' => $oldTotal,
+                    'new_total' => 0,
+                    'removed'   => $cancelledProducts,
+                    'added'     => [],
+                    'updated'   => [],
+                ],
+            ]);
 
             $adminsAndSubAdmins = User::whereIn('role', ['admin', 'sub_admin'])->get();
             $notificationMsg = 'قام العميل ' . $user->name . ' بإلغاء/حذف الطلب رقم #' . $order->id;
@@ -710,6 +761,16 @@ class OrdersController extends Controller
             }
         }
 
+        // Capture old products before sync for diff
+        $oldProducts = [];
+        foreach ($order->products as $p) {
+            $oldProducts[$p->id] = [
+                'name'     => $p->name,
+                'quantity' => (int) $p->pivot->number_of_units,
+            ];
+        }
+        $oldTotal = (float) $order->total_price;
+
         try {
             DB::transaction(function () use ($order, $totalPrice, $discountAmount, $syncData) {
                 $order->update([
@@ -723,12 +784,27 @@ class OrdersController extends Controller
 
             $order->load(['products', 'user.profile']);
 
+            // Compute diff
+            $changes = $this->computeOrderDiff($oldProducts, $syncData, $oldTotal, $totalPrice);
+
+            // Save edit log
+            OrderEditLog::create([
+                'order_id'    => $order->id,
+                'edited_by'   => 'admin',
+                'editor_name' => $user->name,
+                'changes'     => $changes,
+            ]);
+
+            // Build notification with change summary
+            $changeSummary = $this->buildChangeSummary($changes);
+            $notificationMsg = 'تم تعديل منتجات طلبك رقم #' . $order->id . ' بواسطة الإدارة' . "\n" . $changeSummary;
+
             try {
                 app(NotificationController::class)->sendOrderStatusNotification(new Request([
                     'profile_id' => $order->user_id,
                     'order_id'   => $order->id,
                     'title'      => '✏️ تم تعديل طلبك بواسطة الإدارة',
-                    'status'     => 'تم تعديل منتجات طلبك رقم #' . $order->id . ' بواسطة الإدارة',
+                    'status'     => $notificationMsg,
                     'type'       => 'order_edited_by_admin',
                 ]));
             } catch (\Exception $e) {
@@ -744,5 +820,111 @@ class OrdersController extends Controller
             Log::error('Admin Order Update Failed: ' . $e->getMessage());
             return $this->errorResponse('حدث خطأ أثناء تعديل الطلب بواسطة الإدارة', 500);
         }
+    }
+
+    /**
+     * Get edit logs for an order.
+     */
+    public function getEditLogs($id)
+    {
+        $order = Order::with('editLogs')->find($id);
+        if (!$order) {
+            return $this->errorResponse('الطلب غير موجود', 404);
+        }
+
+        return $this->successResponse([
+            'status_code' => 200,
+            'message'     => 'تم جلب سجل التعديلات بنجاح',
+            'data'        => $order->editLogs,
+        ]);
+    }
+
+    /**
+     * Compute diff between old and new order products.
+     */
+    private function computeOrderDiff(array $oldProducts, array $syncData, float $oldTotal, float $newTotal): array
+    {
+        $added   = [];
+        $removed = [];
+        $updated = [];
+
+        $oldIds = array_keys($oldProducts);
+        $newIds = array_keys($syncData);
+
+        // Added products (in new but not in old)
+        foreach ($newIds as $pid) {
+            if (!in_array($pid, $oldIds)) {
+                $product = Product::find($pid);
+                $added[] = [
+                    'product_name' => $product ? $product->name : 'منتج #' . $pid,
+                    'quantity'     => (int) $syncData[$pid]['number_of_units'],
+                ];
+            }
+        }
+
+        // Removed products (in old but not in new)
+        foreach ($oldIds as $pid) {
+            if (!in_array($pid, $newIds)) {
+                $removed[] = [
+                    'product_name' => $oldProducts[$pid]['name'],
+                    'quantity'     => $oldProducts[$pid]['quantity'],
+                ];
+            }
+        }
+
+        // Updated products (in both but quantity changed)
+        foreach ($newIds as $pid) {
+            if (in_array($pid, $oldIds)) {
+                $oldQty = $oldProducts[$pid]['quantity'];
+                $newQty = (int) $syncData[$pid]['number_of_units'];
+                if ($oldQty !== $newQty) {
+                    $updated[] = [
+                        'product_name' => $oldProducts[$pid]['name'],
+                        'old_quantity' => $oldQty,
+                        'new_quantity' => $newQty,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'old_total' => $oldTotal,
+            'new_total' => $newTotal,
+            'added'     => $added,
+            'removed'   => $removed,
+            'updated'   => $updated,
+        ];
+    }
+
+    /**
+     * Build a human-readable change summary for notifications.
+     */
+    private function buildChangeSummary(array $changes): string
+    {
+        $parts = [];
+
+        if (!empty($changes['added'])) {
+            foreach ($changes['added'] as $item) {
+                $parts[] = '🟢 تمت إضافة: ' . $item['product_name'] . ' (×' . $item['quantity'] . ')';
+            }
+        }
+
+        if (!empty($changes['removed'])) {
+            foreach ($changes['removed'] as $item) {
+                $parts[] = '🔴 تم حذف: ' . $item['product_name'] . ' (×' . $item['quantity'] . ')';
+            }
+        }
+
+        if (!empty($changes['updated'])) {
+            foreach ($changes['updated'] as $item) {
+                $parts[] = '🟡 تغيير كمية: ' . $item['product_name'] . ' (من ' . $item['old_quantity'] . ' إلى ' . $item['new_quantity'] . ')';
+            }
+        }
+
+        if (isset($changes['old_total']) && isset($changes['new_total']) && $changes['old_total'] != $changes['new_total']) {
+            $parts[] = '💰 الإجمالي: من ' . number_format($changes['old_total'], 0) . ' إلى ' . number_format($changes['new_total'], 0) . ' ج.م';
+        }
+
+        return implode("\n", $parts);
     }
 }

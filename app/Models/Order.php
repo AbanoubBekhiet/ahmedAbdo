@@ -31,4 +31,9 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function editLogs()
+    {
+        return $this->hasMany(OrderEditLog::class)->orderBy('created_at', 'desc');
+    }
+
 }
