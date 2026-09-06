@@ -40,6 +40,7 @@ class StatisticsController extends Controller
 
         // Period aggregate stats
         $orderStats = Order::whereBetween('created_at', [$startDate, $endDate])
+            ->whereNotIn('status', ['ملغي', 'ملغاة'])
             ->select(
                 DB::raw('COUNT(*) as orders_count'),
                 DB::raw('COALESCE(SUM(total_price), 0) as orders_sum')
@@ -50,10 +51,11 @@ class StatisticsController extends Controller
         $ordersTotalSum = (float) ($orderStats->orders_sum ?? 0);
 
         // All-time aggregate stats
-        $allOrderStats = Order::select(
-            DB::raw('COUNT(*) as orders_count'),
-            DB::raw('COALESCE(SUM(total_price), 0) as orders_sum')
-        )->first();
+        $allOrderStats = Order::whereNotIn('status', ['ملغي', 'ملغاة'])
+            ->select(
+                DB::raw('COUNT(*) as orders_count'),
+                DB::raw('COALESCE(SUM(total_price), 0) as orders_sum')
+            )->first();
 
         $allOrdersTotalSum = (float) ($allOrderStats->orders_sum ?? 0);
 
@@ -111,6 +113,7 @@ class StatisticsController extends Controller
 
         // ── Daily Breakdown for Charts ─────────────────────────────────
         $dailyBreakdown = Order::whereBetween('created_at', [$startDate, $endDate])
+            ->whereNotIn('status', ['ملغي', 'ملغاة'])
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('COUNT(*) as orders_count'),
