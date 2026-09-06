@@ -19,7 +19,7 @@ class CategoryController extends Controller
         );
     }
     public function categoriesWithProducts(){
-        $categories = Category::with('media')->with('products')->cursorPaginate(30);
+        $categories = Category::with('media')->with('products.media')->cursorPaginate(30);
         return $this->successResponse(
             data:$categories,
             message:"تم جلب جميع الأقسام بنجاح",
@@ -44,8 +44,8 @@ class CategoryController extends Controller
     }
 
     public function show($id){
-        $category = Category::with('products')->find($id);
-        $image = $category->getFirstMediaUrl("category_images");
+        $category = Category::with('products.media')->find($id);
+        $image = $category ? $category->getFirstMediaUrl("category_images") : null;
         $data=[
             "category"=>$category,
             "image"=>$image
