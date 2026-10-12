@@ -80,9 +80,12 @@ class NotificationController extends Controller
             $message = CloudMessage::new()
                 ->withToken($deviceToken)
                 ->withNotification(Notification::create($title, $body))
+                ->withAndroidConfig($this->getAndroidConfig())
+                ->withApnsConfig($this->getApnsConfig($title, $body))
                 ->withData([
-                    'type'     => $type,
-                    'order_id' => (string) $orderId,
+                    'type'         => $type,
+                    'order_id'     => (string) $orderId,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                 ]);
 
             $this->messaging->send($message);
@@ -117,9 +120,12 @@ class NotificationController extends Controller
             $topicMessage = CloudMessage::new()
                 ->withTopic('offers')
                 ->withNotification(Notification::create($title, $body))
+                ->withAndroidConfig($this->getAndroidConfig())
+                ->withApnsConfig($this->getApnsConfig($title, $body))
                 ->withData([
-                    'type'     => 'new_offer',
-                    'offer_id' => (string) $offerId,
+                    'type'         => 'new_offer',
+                    'offer_id'     => (string) $offerId,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                 ]);
             $this->messaging->send($topicMessage);
             Log::info("Offer notification broadcast to topic 'offers' | offer_id={$offerId} | title={$title}");
@@ -133,24 +139,35 @@ class NotificationController extends Controller
                 ->where('fcm_token', '!=', '')
                 ->pluck('fcm_token')
                 ->unique()
+                ->filter(fn($token) => is_string($token) && strlen(trim($token)) > 10)
+                ->values()
                 ->toArray();
 
             if (!empty($fcmTokens)) {
-                foreach ($fcmTokens as $token) {
-                    try {
-                        $directMessage = CloudMessage::new()
-                            ->withToken($token)
-                            ->withNotification(Notification::create($title, $body))
-                            ->withData([
-                                'type'     => 'new_offer',
-                                'offer_id' => (string) $offerId,
-                            ]);
-                        $this->messaging->send($directMessage);
-                    } catch (\Exception $e) {
-                        Log::warning("Failed to send offer notification to token: {$token} | Error: " . $e->getMessage());
+                $multicastMessage = CloudMessage::new()
+                    ->withNotification(Notification::create($title, $body))
+                    ->withAndroidConfig($this->getAndroidConfig())
+                    ->withApnsConfig($this->getApnsConfig($title, $body))
+                    ->withData([
+                        'type'         => 'new_offer',
+                        'offer_id'     => (string) $offerId,
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    ]);
+
+                try {
+                    $report = $this->messaging->sendMulticast($multicastMessage, $fcmTokens);
+                    Log::info("Offer notification multicast sent: {$report->successes()->count()} successful, {$report->failures()->count()} failed | offer_id={$offerId}");
+                    $this->pruneStaleTokens($report);
+                } catch (\Exception $e) {
+                    Log::warning("Offer notification multicast failed, falling back to individual send: " . $e->getMessage());
+                    foreach ($fcmTokens as $token) {
+                        try {
+                            $this->messaging->send($multicastMessage->withToken($token));
+                        } catch (\Exception $subEx) {
+                            Log::warning("Failed to send offer notification to token: {$token} | Error: " . $subEx->getMessage());
+                        }
                     }
                 }
-                Log::info("Offer notification sent to " . count($fcmTokens) . " individual tokens | offer_id={$offerId}");
             }
         } catch (\Exception $e) {
             Log::error("sendGlobalOfferNotification direct tokens send failed: " . $e->getMessage());
@@ -176,33 +193,108 @@ class NotificationController extends Controller
                 ->where('fcm_token', '!=', '')
                 ->pluck('fcm_token')
                 ->unique()
+                ->filter(fn($token) => is_string($token) && strlen(trim($token)) > 10)
+                ->values()
                 ->toArray();
 
             if (empty($tokens)) {
-                Log::info("sendNewCustomerNotification: No admin/sub_admin FCM tokens found.");
+                Log::warning("sendNewCustomerNotification: No active admin/sub_admin FCM tokens found for customer #{$newCustomer->id}.");
                 return;
             }
 
+            $customerName  = $newCustomer->name ?? 'عميل جديد';
+            $customerPhone = $newCustomer->phone_number ?? 'غير متوفر';
             $title = "عميل جديد سجل في التطبيق 🎉";
-            $body = "سجل العميل الجديد: " . $newCustomer->name . " (هاتف: " . $newCustomer->phone_number . ")";
+            $body = "سجل العميل الجديد: {$customerName} (هاتف: {$customerPhone})";
 
-            foreach ($tokens as $token) {
-                try {
-                    $message = CloudMessage::new()
-                        ->withToken($token)
-                        ->withNotification(Notification::create($title, $body))
-                        ->withData([
-                            'type' => 'new_customer_signup',
-                            'user_id' => (string) $newCustomer->id,
-                        ]);
-                    $this->messaging->send($message);
-                } catch (\Exception $e) {
-                    Log::warning("Failed to send new customer signup notification to token: {$token} | Error: " . $e->getMessage());
+            $message = CloudMessage::new()
+                ->withNotification(Notification::create($title, $body))
+                ->withAndroidConfig($this->getAndroidConfig())
+                ->withApnsConfig($this->getApnsConfig($title, $body))
+                ->withData([
+                    'type'           => 'new_customer_signup',
+                    'user_id'        => (string) $newCustomer->id,
+                    'customer_name'  => (string) $customerName,
+                    'customer_phone' => (string) $customerPhone,
+                    'click_action'   => 'FLUTTER_NOTIFICATION_CLICK',
+                ]);
+
+            try {
+                $report = $this->messaging->sendMulticast($message, $tokens);
+                Log::info("New customer signup notification sent for customer #{$newCustomer->id}: {$report->successes()->count()} successful, {$report->failures()->count()} failed.");
+                $this->pruneStaleTokens($report);
+            } catch (\Exception $e) {
+                Log::warning("sendNewCustomerNotification multicast failed, falling back to individual send: " . $e->getMessage());
+                foreach ($tokens as $token) {
+                    try {
+                        $this->messaging->send($message->withToken($token));
+                    } catch (\Exception $subEx) {
+                        Log::warning("Failed to send signup notification to token: {$token} | Error: " . $subEx->getMessage());
+                    }
                 }
             }
-            Log::info("New customer signup notification sent to " . count($tokens) . " admin/sub_admin tokens.");
         } catch (\Exception $e) {
-            Log::error("sendNewCustomerNotification failed: " . $e->getMessage());
+            Log::error("sendNewCustomerNotification failed for customer #{$newCustomer->id}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reusable Android configuration with high priority and notification channel.
+     */
+    protected function getAndroidConfig(): array
+    {
+        return [
+            'priority' => 'high',
+            'notification' => [
+                'channel_id'              => 'high_importance_channel',
+                'sound'                   => 'default',
+                'default_sound'           => true,
+                'default_vibrate_timings' => true,
+                'notification_priority'   => 'PRIORITY_MAX',
+                'visibility'              => 'PUBLIC',
+                'click_action'            => 'FLUTTER_NOTIFICATION_CLICK',
+            ],
+        ];
+    }
+
+    /**
+     * Reusable APNs configuration for iOS devices.
+     */
+    protected function getApnsConfig(string $title, string $body): array
+    {
+        return [
+            'headers' => [
+                'apns-priority' => '10',
+            ],
+            'payload' => [
+                'aps' => [
+                    'alert' => [
+                        'title' => $title,
+                        'body'  => $body,
+                    ],
+                    'sound'             => 'default',
+                    'badge'             => 1,
+                    'content-available' => 1,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Automatically remove invalid or unregistered FCM tokens from profiles.
+     */
+    protected function pruneStaleTokens($report): void
+    {
+        try {
+            if (is_object($report) && method_exists($report, 'unknownTokens') && method_exists($report, 'invalidTokens')) {
+                $staleTokens = array_unique(array_merge($report->unknownTokens(), $report->invalidTokens()));
+                if (!empty($staleTokens)) {
+                    $count = Profile::whereIn('fcm_token', $staleTokens)->update(['fcm_token' => null]);
+                    Log::info("Cleaned up {$count} invalid/stale FCM token(s) from profiles.");
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("Failed to prune stale FCM tokens: " . $e->getMessage());
         }
     }
 }

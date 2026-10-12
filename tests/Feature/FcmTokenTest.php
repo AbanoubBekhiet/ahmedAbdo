@@ -71,3 +71,66 @@ test('updating fcm token validates fcm_token parameter', function () {
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['fcm_token']);
 });
+
+test('login saves fcm_token directly to profile if provided', function () {
+    $user = User::create([
+        'name' => 'Admin User',
+        'role' => 'admin',
+        'phone_number' => '01012345678',
+        'password' => bcrypt('secret123'),
+    ]);
+
+    Profile::create([
+        'user_id' => $user->id,
+        'latitude' => 30.0,
+        'longitude' => 31.0,
+        'shop_name' => 'Admin Store',
+        'address' => 'Cairo',
+        'fcm_token' => null,
+    ]);
+
+    $response = $this->postJson('/api/login', [
+        'phone_number' => '01012345678',
+        'password' => 'secret123',
+        'fcm_token' => 'admin_direct_login_fcm_token_123',
+    ]);
+
+    $response->assertStatus(200);
+
+    $this->assertDatabaseHas('profiles', [
+        'user_id' => $user->id,
+        'fcm_token' => 'admin_direct_login_fcm_token_123',
+    ]);
+});
+
+test('sendNewCustomerNotification executes gracefully without exception', function () {
+    $admin = User::create([
+        'name' => 'Admin User',
+        'role' => 'admin',
+        'phone_number' => '01099998888',
+        'password' => bcrypt('secret123'),
+    ]);
+
+    Profile::create([
+        'user_id' => $admin->id,
+        'latitude' => 30.0,
+        'longitude' => 31.0,
+        'shop_name' => 'Admin Store',
+        'address' => 'Cairo',
+        'fcm_token' => 'admin_fcm_token_xyz',
+    ]);
+
+    $newCustomer = User::create([
+        'name' => 'New Customer',
+        'role' => 'customer',
+        'phone_number' => '01122334455',
+        'password' => bcrypt('secret123'),
+    ]);
+
+    // Should run smoothly without throwing any exceptions
+    app(\App\Http\Controllers\NotificationController::class)->sendNewCustomerNotification($newCustomer);
+
+    expect(true)->toBeTrue();
+});
+
+

@@ -103,12 +103,25 @@ class AuthController extends Controller
     
     public function login(LoginRequest $request)
     {
-        $validatedData = $request->validated();
-        if (!Auth::attempt($validatedData)) {
+        $credentials = [
+            'phone_number' => $request->phone_number,
+            'password'     => $request->password,
+        ];
+
+        if (!Auth::attempt($credentials)) {
             return $this->errorResponse('Invalid credentials', 401);
         }
         
         $user = Auth::user();
+
+        // If FCM token is provided upon login, update or create it immediately
+        if ($request->filled('fcm_token')) {
+            $user->profile()->updateOrCreate(
+                ['user_id' => $user->id],
+                ['fcm_token' => $request->fcm_token]
+            );
+        }
+
         $user->load(['profile.region', 'wallet']);
         $profile = $user->profile;
         $wallet = $user->wallet;
